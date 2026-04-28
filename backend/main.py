@@ -17,6 +17,7 @@ try:
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS shoe_id INTEGER;"))
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS cadence INTEGER DEFAULT 0;"))
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
+        conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS splits JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS friends JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS comments JSON DEFAULT '[]'::json;"))
@@ -265,6 +266,25 @@ def create_record(record: schemas.RecordCreate, user_id: int, db: Session = Depe
     db.commit()
     db.refresh(db_record)
     return db_record
+
+@app.delete("/api/records/{record_id}")
+def delete_record(record_id: int, user_id: int, db: Session = Depends(get_db)):
+    db_record = db.query(models.Record).filter(models.Record.id == record_id).first()
+    if not db_record:
+        raise HTTPException(status_code=404, detail="기록을 찾을 수 없습니다.")
+    
+    if db_record.user_id != user_id:
+        raise HTTPException(status_code=403, detail="자신의 기록만 삭제할 수 있습니다.")
+
+    # 신발 마일리지 차감
+    if db_record.shoe_id:
+        db_shoe = db.query(models.Shoe).filter(models.Shoe.id == db_record.shoe_id).first()
+        if db_shoe:
+            db_shoe.total_km = max(0, db_shoe.total_km - db_record.distance)
+            
+    db.delete(db_record)
+    db.commit()
+    return {"message": "기록이 삭제되었습니다."}
 
 # --- 신발 관리 API ---
 @app.get("/api/shoes/{user_id}", response_model=List[schemas.Shoe])

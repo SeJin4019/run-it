@@ -474,7 +474,31 @@ const handleRecommendRoute = (data) => {
     path: data.path,
     distance: data.distance
   }
+  showFriendProfile.value = false // 다른 다이얼로그 닫기
   currentView.value = 'create'
+}
+
+const handleDeleteRecord = async (recordId) => {
+  if (!isLoggedIn.value) return
+
+  try {
+    const res = await fetch(`${API_URL}/records/${recordId}?user_id=${currentUser.value.id}`, {
+      method: 'DELETE'
+    })
+    
+    if (res.ok) {
+      // 전역 레코드에서 삭제
+      globalRecords.value = globalRecords.value.filter(r => r.id !== recordId)
+      // 신발 마일리지 갱신 (마일리지가 차감되었을 수 있음)
+      fetchUserShoes()
+      alert('기록이 정상적으로 삭제되었습니다.')
+    } else {
+      const data = await res.json()
+      alert('기록 삭제 실패: ' + (data.detail || '알 수 없는 오류'))
+    }
+  } catch (e) {
+    console.error('기록 삭제 에러:', e)
+  }
 }
 
 const selectedFriendRecords = ref([])
@@ -758,6 +782,8 @@ const goToCreate = () => {
             :is-me="true"
             @logout="handleLogout"
             @refresh-shoes="fetchUserShoes"
+            @recommend-route="handleRecommendRoute"
+            @delete-record="handleDeleteRecord"
           />
         </div>
       </VContainer>
@@ -785,6 +811,8 @@ const goToCreate = () => {
             :is-friend="currentUser?.friends?.includes(selectedFriend.id)"
             @add-friend="handleAddFriend"
             @remove-friend="handleRemoveFriend"
+            @recommend-route="handleRecommendRoute"
+            @delete-record="handleDeleteRecord"
           />
         </VCardText>
       </VCard>

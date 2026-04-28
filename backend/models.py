@@ -45,6 +45,7 @@ class Record(Base):
     pace = Column(String) # "0'00\"" 형식
     calories = Column(Integer)
     cadence = Column(Integer, default=0)
+    splits = Column(JSON, default=list) # [{km: 1, time: "05:30", pace: "5'30\""}, ...]
     path = Column(JSON, default=list) # [[lat, lng], ...]
     date = Column(DateTime, default=datetime.datetime.utcnow)
     user_id = Column(Integer, ForeignKey("users.id"))

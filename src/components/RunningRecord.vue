@@ -29,6 +29,24 @@ const currentPath = ref([])
 const startPosition = ref([37.5665, 126.9780]) // Default Seoul City Hall
 let watchId = null
 const cadence = ref(0) // steps per minute
+const cadenceDistanceHistory = ref([]) // 5-second window history for real-time cadence
+const splits = ref([])
+const lastSplitDistance = ref(0)
+const lastSplitTime = ref(0)
+
+const formatTimeFromSeconds = (secs) => {
+  const m = Math.floor(secs / 60)
+  const s = Math.floor(secs % 60)
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
+
+const formatPaceFromSeconds = (secs, dist) => {
+  if (dist <= 0) return "0'00\""
+  const paceSecs = secs / dist
+  const paceM = Math.floor(paceSecs / 60)
+  const paceS = Math.floor(paceSecs % 60)
+  return `${paceM}'${paceS.toString().padStart(2, '0')}"`
+}
 const isManualMode = ref(false)
 const manualDistance = ref(0)
 const manualTime = ref('00:00:00')
@@ -59,6 +77,9 @@ const calories = computed(() => {
 
 const startRunning = () => {
   if (elapsedTime.value === 0 && currentPath.value.length === 0) {
+    splits.value = []
+    lastSplitDistance.value = 0
+    lastSplitTime.value = 0
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((pos) => {
         startPosition.value = [pos.coords.latitude, pos.coords.longitude]
@@ -81,24 +102,37 @@ const startRunning = () => {
   }
 
   isRunning.value = true
+  cadenceDistanceHistory.value = [] // Reset cadence history when starting/resuming
   
   // 1. 시간 측정용 타이머 및 실시간 케이던스 계산
   timer.value = setInterval(() => {
     elapsedTime.value++
     if (isRunning.value) {
-      // 속도 기반 케이던스 역산 (평균 보폭 0.9m 가정)
-      // 현재 누적 거리(km)를 누적 시간(분)으로 나누어 분당 이동 거리(m/min) 계산
-      if (elapsedTime.value > 10 && distance.value > 0.01) {
-        const speedMetersPerMin = (distance.value * 1000) / (elapsedTime.value / 60)
-        // 속도(m/min) / 보폭(m/step) = 케이던스(spm)
-        let calcCadence = Math.round(speedMetersPerMin / 0.9)
-        // 비현실적인 값 필터링
-        if (calcCadence < 100) calcCadence = 0 // 걷거나 멈춘 경우
-        if (calcCadence > 220) calcCadence = 220 // 최대치 제한
-        
-        // 너무 튀지 않게 이전 케이던스와 보간(스무딩)
-        if (cadence.value === 0) cadence.value = calcCadence
-        else cadence.value = Math.round((cadence.value * 0.7) + (calcCadence * 0.3))
+      cadenceDistanceHistory.value.push({ t: elapsedTime.value, d: distance.value })
+      if (cadenceDistanceHistory.value.length > 5) {
+        cadenceDistanceHistory.value.shift()
+      }
+
+      if (cadenceDistanceHistory.value.length >= 2) {
+        const first = cadenceDistanceHistory.value[0]
+        const last = cadenceDistanceHistory.value[cadenceDistanceHistory.value.length - 1]
+        const timeDeltaMin = (last.t - first.t) / 60
+        const distDeltaMeters = (last.d - first.d) * 1000
+
+        if (timeDeltaMin > 0) {
+          const speedMetersPerMin = distDeltaMeters / timeDeltaMin
+          let calcCadence = Math.round(speedMetersPerMin / 0.9) // 평균 보폭 0.9m 가정
+          
+          if (calcCadence < 100) calcCadence = 0 // 걷거나 멈춘 경우
+          if (calcCadence > 220) calcCadence = 220 // 최대치 제한
+
+          if (cadence.value === 0 || calcCadence === 0) {
+            cadence.value = calcCadence
+          } else {
+            // 부드러운 전환을 위한 보간
+            cadence.value = Math.round((cadence.value * 0.7) + (calcCadence * 0.3))
+          }
+        }
       } else {
         cadence.value = 0
       }
@@ -136,6 +170,20 @@ const startRunning = () => {
             distance.value += distMeters / 1000 // km로 변환하여 누적
             currentPath.value.push(newPos)
             updateMap()
+
+            // 구간 페이스 체크 (1km 마다)
+            const currentKm = Math.floor(distance.value)
+            if (currentKm > Math.floor(lastSplitDistance.value)) {
+              const splitTimeSecs = elapsedTime.value - lastSplitTime.value
+              const splitDist = distance.value - lastSplitDistance.value
+              splits.value.push({
+                km: currentKm, // 1, 2, 3...
+                time: formatTimeFromSeconds(splitTimeSecs),
+                pace: formatPaceFromSeconds(splitTimeSecs, splitDist)
+              })
+              lastSplitDistance.value = distance.value
+              lastSplitTime.value = elapsedTime.value
+            }
           }
         } else {
           currentPath.value.push(newPos)
@@ -241,6 +289,7 @@ const initMap = () => {
 const pauseRunning = () => {
   isRunning.value = false
   cadence.value = 0
+  cadenceDistanceHistory.value = []
   if (timer.value) clearInterval(timer.value)
   if (watchId) {
     navigator.geolocation.clearWatch(watchId)
@@ -254,6 +303,7 @@ const pauseRunning = () => {
 
 const stopRunning = async () => {
   isRunning.value = false
+  cadenceDistanceHistory.value = []
   if (timer.value) {
     clearInterval(timer.value)
     timer.value = null
@@ -292,6 +342,17 @@ const saveRecord = async () => {
   await stopRunning()
   
   if (currentPath.value.length > 0) {
+    // 남은 거리가 있으면 마지막 구간도 추가
+    const remainingDist = distance.value - lastSplitDistance.value
+    if (remainingDist > 0.05) { // 50m 이상일 때만
+      const splitTimeSecs = elapsedTime.value - lastSplitTime.value
+      splits.value.push({
+        km: Number(distance.value).toFixed(2), // 마지막 구간은 총 거리 표시 (e.g. 2.45)
+        time: formatTimeFromSeconds(splitTimeSecs),
+        pace: formatPaceFromSeconds(splitTimeSecs, remainingDist)
+      })
+    }
+
     const record = {
       distance: Number(distance.value.toFixed(2)),
       time: formattedTime.value,
@@ -299,6 +360,7 @@ const saveRecord = async () => {
       calories: calories.value,
       shoe_id: selectedShoe.value,
       cadence: cadence.value,
+      splits: splits.value, // 구간 기록 포함
       path: currentPath.value // 경로 데이터 포함
     }
     

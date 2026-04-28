@@ -53,6 +53,7 @@ class RecordBase(BaseModel):
     pace: str
     calories: int
     cadence: Optional[int] = 0
+    splits: Optional[List[dict]] = []
     path: Optional[List[List[float]]] = []
     shoe_id: Optional[int] = None
 

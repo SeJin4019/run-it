@@ -21,7 +21,7 @@ const props = defineProps({
   apiUrl: String
 })
 
-const emit = defineEmits(['logout', 'add-friend', 'remove-friend'])
+const emit = defineEmits(['logout', 'add-friend', 'remove-friend', 'recommend-route', 'delete-record'])
 
 const stats = computed(() => {
   const totalKm = props.records.reduce((acc, rec) => acc + parseFloat(rec.distance), 0)
@@ -44,6 +44,23 @@ const showDetailDialog = ref(false)
 const openRecordDetail = (record) => {
   selectedRecord.value = record
   showDetailDialog.value = true
+}
+
+const handleShareCourse = () => {
+  if (selectedRecord.value && selectedRecord.value.path) {
+    emit('recommend-route', {
+      path: selectedRecord.value.path,
+      distance: selectedRecord.value.distance
+    })
+    showDetailDialog.value = false
+  }
+}
+
+const handleDeleteRecord = () => {
+  if (confirm('정말로 이 기록을 삭제하시겠습니까? (관련 신발 마일리지도 함께 차감됩니다)')) {
+    emit('delete-record', selectedRecord.value.id)
+    showDetailDialog.value = false
+  }
 }
 
 const getShoeName = (shoeId) => {
@@ -208,6 +225,56 @@ const getShoeName = (shoeId) => {
               </VCard>
             </VCol>
           </VRow>
+
+          <!-- 구간별 기록 표시 -->
+          <div v-if="selectedRecord.splits && selectedRecord.splits.length > 0" class="mt-6 mb-2">
+            <h4 class="text-subtitle-2 font-weight-bold mb-2">구간 페이스</h4>
+            <VCard variant="outlined" class="rounded-lg bg-white overflow-hidden">
+              <VTable density="compact">
+                <thead>
+                  <tr>
+                    <th class="text-left text-caption font-weight-bold">구간</th>
+                    <th class="text-left text-caption font-weight-bold">시간</th>
+                    <th class="text-left text-caption font-weight-bold">페이스</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(split, idx) in selectedRecord.splits" :key="idx">
+                    <td class="text-caption font-weight-bold">{{ split.km }} km</td>
+                    <td class="text-caption text-grey-darken-1">{{ split.time }}</td>
+                    <td class="text-caption font-weight-bold text-primary">{{ split.pace }}</td>
+                  </tr>
+                </tbody>
+              </VTable>
+            </VCard>
+          </div>
+
+          <!-- 공유 버튼 -->
+          <VBtn 
+            v-if="selectedRecord.path && selectedRecord.path.length > 0"
+            color="primary" 
+            variant="elevated" 
+            block 
+            class="mt-6 rounded-lg font-weight-bold" 
+            size="large"
+            prepend-icon="mdi-share-variant"
+            @click="handleShareCourse"
+          >
+            이 기록을 추천 코스로 공유하기
+          </VBtn>
+
+          <!-- 삭제 버튼 -->
+          <VBtn 
+            v-if="isMe"
+            color="error" 
+            variant="text" 
+            block 
+            class="mt-2 rounded-lg font-weight-bold" 
+            prepend-icon="mdi-delete"
+            @click="handleDeleteRecord"
+          >
+            기록 삭제하기
+          </VBtn>
         </VCardText>
       </VCard>
     </VDialog>
