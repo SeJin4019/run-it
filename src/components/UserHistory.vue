@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import ShoeManagement from './ShoeManagement.vue'
 
 const props = defineProps({
   user: Object,
@@ -11,7 +12,8 @@ const props = defineProps({
   isFriend: {
     type: Boolean,
     default: false
-  }
+  },
+  apiUrl: String
 })
 
 const emit = defineEmits(['logout', 'add-friend', 'remove-friend'])
@@ -84,6 +86,14 @@ const formatDate = (dateStr) => {
         </VCard>
       </VCol>
     </VRow>
+
+    <!-- 신발 관리 섹션 (내 정보 탭에 통합) -->
+    <div v-if="isMe" class="shoes-section mb-8">
+      <ShoeManagement 
+        :user-id="user.id" 
+        :api-url="apiUrl" 
+      />
+    </div>
 
     <!-- 활동 기록 리스트 -->
     <div class="section-header mb-4">

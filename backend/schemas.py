@@ -51,6 +51,7 @@ class RecordBase(BaseModel):
     time: str
     pace: str
     calories: int
+    shoe_id: Optional[int] = None
 
 class RecordCreate(RecordBase):
     pass

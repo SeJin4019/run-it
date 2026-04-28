@@ -4,7 +4,14 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 
+const props = defineProps({
+  userId: Number,
+  shoes: Array
+})
+
 const emit = defineEmits(['save-record', 'back'])
+
+const selectedShoe = ref(null)
 
 const isRunning = ref(false)
 const elapsedTime = ref(0) // seconds
@@ -176,7 +183,8 @@ const stopRunning = () => {
       distance: distance.value.toFixed(2),
       time: formattedTime.value,
       pace: pace.value,
-      calories: calories.value
+      calories: calories.value,
+      shoe_id: selectedShoe.value
     }
     emit('save-record', record)
     alert('러닝이 기록되었습니다!')
@@ -242,6 +250,26 @@ onUnmounted(() => {
               <div class="text-h6 font-weight-bold">{{ calories }} kcal</div>
             </div>
           </VCard>
+        </VCol>
+        <VCol cols="12">
+          <VSelect
+            v-model="selectedShoe"
+            :items="shoes.filter(s => s.is_active)"
+            item-title="name"
+            item-value="id"
+            label="신발 선택"
+            placeholder="오늘 신은 신발을 골라주세요"
+            variant="outlined"
+            density="comfortable"
+            prepend-inner-icon="mdi-shoe-run"
+            class="rounded-lg"
+            clearable
+            :disabled="isRunning"
+          >
+            <template v-slot:item="{ props, item }">
+              <VListItem v-bind="props" :subtitle="item.raw.brand + ' - ' + (item.raw.initial_km + item.raw.total_km).toFixed(1) + 'km'"></VListItem>
+            </template>
+          </VSelect>
         </VCol>
       </VRow>
     </div>

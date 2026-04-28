@@ -45,6 +45,7 @@ class Record(Base):
     calories = Column(Integer)
     date = Column(DateTime, default=datetime.datetime.utcnow)
     user_id = Column(Integer, ForeignKey("users.id"))
+    shoe_id = Column(Integer, ForeignKey("shoes.id"), nullable=True)
 
     user = relationship("User", back_populates="records")
 

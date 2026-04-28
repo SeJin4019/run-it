@@ -119,6 +119,13 @@ def get_user_records(user_id: int, db: Session = Depends(get_db)):
 def create_record(record: schemas.RecordCreate, user_id: int, db: Session = Depends(get_db)):
     db_record = models.Record(**record.dict(), user_id=user_id)
     db.add(db_record)
+    
+    # 신발 마일리지 업데이트
+    if record.shoe_id:
+        db_shoe = db.query(models.Shoe).filter(models.Shoe.id == record.shoe_id).first()
+        if db_shoe:
+            db_shoe.total_km += record.distance
+            
     db.commit()
     db.refresh(db_record)
     return db_record

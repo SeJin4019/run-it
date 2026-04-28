@@ -30,9 +30,10 @@ const isLoggedIn = ref(false)
 const currentUser = ref(null)
 const showAuthDialog = ref(false)
 
-// 커뮤니티 데이터 상태
+// 커뮤니티 및 장비 데이터 상태
 const globalUsers = ref([])
 const globalRecords = ref([])
+const userShoes = ref([])
 const selectedFriend = ref(null)
 const showFriendProfile = ref(false)
 
@@ -73,6 +74,7 @@ onMounted(async () => {
       currentUser.value = JSON.parse(savedUser)
       isLoggedIn.value = true
       fetchUserRecords()
+      fetchUserShoes()
     }
   } else if (savedToken && savedUser) {
      // 구버전(만료시간 없는) 데이터 호환성
@@ -101,6 +103,18 @@ const fetchUserRecords = async () => {
     }
   } catch (e) {
     console.error('기록 로딩 실패:', e)
+  }
+}
+
+const fetchUserShoes = async () => {
+  if (!currentUser.value) return
+  try {
+    const res = await fetch(`${API_URL}/shoes/${currentUser.value.id}`)
+    if (res.ok) {
+      userShoes.value = await res.json()
+    }
+  } catch (e) {
+    console.error('신발 로딩 실패:', e)
   }
 }
 
@@ -209,6 +223,7 @@ const handleLogin = (authResponse) => {
   localStorage.setItem('rundanggeun_expiry', expiryTime.toString())
   
   fetchUserRecords()
+  fetchUserShoes()
 }
 
 /**
@@ -412,6 +427,8 @@ const goToCreate = () => {
         <!-- 러닝 기록 뷰 -->
         <div v-else-if="currentView === 'record'">
           <RunningRecord 
+            :user-id="currentUser?.id"
+            :shoes="userShoes"
             @save-record="handleSaveRecord"
             @back="currentView = 'history'"
           />
@@ -427,21 +444,16 @@ const goToCreate = () => {
           />
         </div>
 
-        <!-- 신발 관리 뷰 -->
-        <div v-else-if="currentView === 'shoes'">
-          <ShoeManagement 
-            :user-id="currentUser?.id"
-            :api-url="API_URL"
-          />
-        </div>
-
-        <!-- 내 활동 뷰 -->
+        <!-- 내 활동 뷰 (신발 관리 포함) -->
         <div v-else-if="currentView === 'history'">
           <UserHistory 
             :user="currentUser"
             :records="myRecords"
+            :shoes="userShoes"
+            :api-url="API_URL"
             :is-me="true"
             @logout="handleLogout"
+            @refresh-shoes="fetchUserShoes"
           />
         </div>
       </VContainer>
@@ -503,11 +515,6 @@ const goToCreate = () => {
       <VBtn value="community" v-if="isLoggedIn">
         <VIcon icon="mdi-account-group" />
         <span>커뮤니티</span>
-      </VBtn>
-
-      <VBtn value="shoes" v-if="isLoggedIn">
-        <VIcon icon="mdi-shoe-run" />
-        <span>신발</span>
       </VBtn>
 
       <VBtn value="history" v-if="isLoggedIn">
