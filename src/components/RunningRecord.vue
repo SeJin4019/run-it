@@ -10,7 +10,7 @@ const props = defineProps({
   apiUrl: String
 })
 
-const emit = defineEmits(['save-record', 'back'])
+const emit = defineEmits(['save-record', 'back', 'recommend-route'])
 
 const selectedShoe = ref(null)
 
@@ -28,6 +28,10 @@ let userMarker = null
 const currentPath = ref([])
 const startPosition = ref([37.5665, 126.9780]) // Default Seoul City Hall
 let watchId = null
+const cadence = ref(0) // steps per minute
+const showRecommendDialog = ref(false)
+const lastSavedPath = ref([])
+const lastSavedDistance = ref(0)
 
 const formattedTime = computed(() => {
   const hrs = Math.floor(elapsedTime.value / 3600)
@@ -72,6 +76,10 @@ const startRunning = () => {
   // 1. 시간 측정용 타이머
   timer.value = setInterval(() => {
     elapsedTime.value++
+    // 케이던스 시뮬레이션 (달리는 중일 때만 150~180 사이 랜덤)
+    if (isRunning.value) {
+      cadence.value = Math.floor(Math.random() * (180 - 160 + 1)) + 160
+    }
   }, 1000)
 
   // 1.5 실시간 위치 공유 타이머 (10초마다 서버 전송)
@@ -124,8 +132,16 @@ const sendLiveLocation = async (isActive) => {
   
   const lastPos = currentPath.value[currentPath.value.length - 1]
   try {
-    await fetch(`${props.apiUrl}/live/update?user_id=${props.userId}&lat=${lastPos[0]}&lng=${lastPos[1]}&is_active=${isActive}`, {
-      method: 'POST'
+    await fetch(`${props.apiUrl}/live/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: props.userId,
+        latitude: lastPos[0],
+        longitude: lastPos[1],
+        path: currentPath.value,
+        is_active: isActive
+      })
     })
   } catch (e) {
     console.error('실시간 위치 전송 실패:', e)
@@ -187,6 +203,7 @@ const initMap = () => {
 
 const pauseRunning = () => {
   isRunning.value = false
+  cadence.value = 0
   if (timer.value) clearInterval(timer.value)
   if (watchId) {
     navigator.geolocation.clearWatch(watchId)
@@ -232,11 +249,39 @@ const saveRecord = async () => {
       calories: calories.value,
       shoe_id: selectedShoe.value
     }
+    
+    // 추천 경로용 데이터 저장
+    lastSavedPath.value = [...currentPath.value]
+    lastSavedDistance.value = distance.value
+    
     emit('save-record', record)
-    alert('러닝이 기록되었습니다!')
+    
+    // 기록 저장 후 추천 다이얼로그 표시
+    showRecommendDialog.value = true
   }
-  emit('back')
 }
+
+const handleRecommendConfirm = (confirm) => {
+  showRecommendDialog.value = false
+  if (confirm) {
+    emit('recommend-route', {
+      path: lastSavedPath.value,
+      distance: lastSavedDistance.value
+    })
+  } else {
+    emit('back')
+  }
+}
+
+onMounted(() => {
+  // 마운트 시 바로 GPS 위치 시도
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition((pos) => {
+      startPosition.value = [pos.coords.latitude, pos.coords.longitude]
+      if (!map) initMap()
+    })
+  }
+})
 
 
 onUnmounted(() => {
@@ -276,13 +321,17 @@ onUnmounted(() => {
       </div>
 
       <VRow>
-        <VCol cols="6">
+        <VCol cols="4">
           <div class="text-caption text-grey-lighten-1">시간</div>
           <div class="text-h5 font-weight-bold text-white">{{ formattedTime }}</div>
         </VCol>
-        <VCol cols="6">
-          <div class="text-caption text-grey-lighten-1">평균 페이스</div>
+        <VCol cols="4">
+          <div class="text-caption text-grey-lighten-1">페이스</div>
           <div class="text-h5 font-weight-bold text-white">{{ pace }}</div>
+        </VCol>
+        <VCol cols="4">
+          <div class="text-caption text-grey-lighten-1">케이던스</div>
+          <div class="text-h5 font-weight-bold text-white">{{ cadence }}</div>
         </VCol>
       </VRow>
     </div>
@@ -354,7 +403,8 @@ onUnmounted(() => {
         <VBtn
           color="orange-darken-2"
           size="x-large"
-          class="action-btn rounded-xl px-8"
+          class="rounded-xl px-8"
+          style="height: 64px; min-width: 140px;"
           prepend-icon="mdi-stop"
           @click="saveRecord"
         >
@@ -376,6 +426,21 @@ onUnmounted(() => {
         [테스트] 강제 이동 (GPS 모의 테스트)
       </VBtn>
     </div>
+
+    <!-- 추천 경로 추가 다이얼로그 -->
+    <VDialog v-model="showRecommendDialog" max-width="400" persistent>
+      <VCard class="rounded-xl pa-4">
+        <VCardTitle class="text-h6 font-weight-black text-center">오늘 달린 코스가 좋았나요?</VCardTitle>
+        <VCardText class="text-body-2 text-center text-grey">
+          방금 달린 따끈따끈한 경로를<br>
+          우리 동네 추천 코스 게시판에 공유할까요?
+        </VCardText>
+        <VCardActions class="justify-center mt-4">
+          <VBtn color="grey" variant="text" @click="handleRecommendConfirm(false)">아니요</VBtn>
+          <VBtn color="primary" variant="elevated" rounded="lg" class="px-6" @click="handleRecommendConfirm(true)">네, 공유할게요!</VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 

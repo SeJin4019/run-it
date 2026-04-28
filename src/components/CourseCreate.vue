@@ -9,6 +9,13 @@ import MapRoutePicker from './MapRoutePicker.vue'
  * .skills/file-upload 표준을 준수하며, 이미지를 Base64로 인코딩하여 저장합니다.
  */
 
+const props = defineProps({
+  prefilledData: {
+    type: Object,
+    default: null
+  }
+})
+
 const emit = defineEmits(['create'])
 
 const previewImage = ref(null)
@@ -162,6 +169,14 @@ const handleSubmit = async () => {
   
   loading.value = false
 }
+
+onMounted(() => {
+  if (props.prefilledData) {
+    newCourse.value.path = props.prefilledData.path
+    newCourse.value.distance = props.prefilledData.distance
+    // 경로가 있으면 지도에 맞춰서 거리 등이 자동 계산될 수 있도록 함
+  }
+})
 
 const resetForm = () => {
   newCourse.value = {

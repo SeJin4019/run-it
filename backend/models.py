@@ -70,6 +70,7 @@ class LiveLocation(Base):
     user_id = Column(Integer, ForeignKey("users.id"), unique=True)
     latitude = Column(Float)
     longitude = Column(Float)
+    path = Column(JSON, default=[]) # 실시간 이동 경로 [[lat, lng], ...]
     is_active = Column(Boolean, default=False)
     last_updated = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 

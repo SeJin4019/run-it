@@ -90,3 +90,11 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+
+# Live Location Schemas
+class LiveLocationUpdate(BaseModel):
+    user_id: int
+    latitude: float
+    longitude: float
+    path: List[List[float]]
+    is_active: bool

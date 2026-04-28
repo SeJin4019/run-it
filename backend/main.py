@@ -268,15 +268,22 @@ def delete_shoe(shoe_id: int, db: Session = Depends(get_db)):
 
 # --- 실시간 위치 공유 API ---
 @app.post("/api/live/update")
-def update_live_location(user_id: int, lat: float, lng: float, is_active: bool, db: Session = Depends(get_db)):
-    db_loc = db.query(models.LiveLocation).filter(models.LiveLocation.user_id == user_id).first()
+def update_live_location(data: schemas.LiveLocationUpdate, db: Session = Depends(get_db)):
+    db_loc = db.query(models.LiveLocation).filter(models.LiveLocation.user_id == data.user_id).first()
     if not db_loc:
-        db_loc = models.LiveLocation(user_id=user_id, latitude=lat, longitude=lng, is_active=is_active)
+        db_loc = models.LiveLocation(
+            user_id=data.user_id, 
+            latitude=data.latitude, 
+            longitude=data.longitude, 
+            path=data.path,
+            is_active=data.is_active
+        )
         db.add(db_loc)
     else:
-        db_loc.latitude = lat
-        db_loc.longitude = lng
-        db_loc.is_active = is_active
+        db_loc.latitude = data.latitude
+        db_loc.longitude = data.longitude
+        db_loc.path = data.path
+        db_loc.is_active = data.is_active
     
     db.commit()
     return {"status": "success"}
@@ -302,6 +309,7 @@ def get_friends_live_locations(user_id: int, db: Session = Depends(get_db)):
             "name": loc.user.name,
             "latitude": loc.latitude,
             "longitude": loc.longitude,
+            "path": loc.path,
             "last_updated": loc.last_updated
         })
     return result

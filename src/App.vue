@@ -11,6 +11,7 @@ import RunningRecord from './components/RunningRecord.vue'
 import UserHistory from './components/UserHistory.vue'
 import CommunityView from './components/CommunityView.vue'
 import ShoeManagement from './components/ShoeManagement.vue'
+import LiveMap from './components/LiveMap.vue'
 
 /**
  * 🏃‍♂️ 런당근 메인 애플리케이션 컴포넌트
@@ -29,6 +30,7 @@ const searchQuery = ref('')
 const isLoggedIn = ref(false)
 const currentUser = ref(null)
 const showAuthDialog = ref(false)
+const prefilledCourseData = ref(null) // 기록 종료 후 추천 경로 등록용 데이터
 
 // 커뮤니티 및 장비 데이터 상태
 const globalUsers = ref([])
@@ -371,6 +373,7 @@ const handleCreateCourse = async (courseData) => {
     if (res.ok) {
       const newCourse = await res.json()
       courses.value.unshift(newCourse)
+      prefilledCourseData.value = null // 데이터 초기화
       currentView.value = 'discover'
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
@@ -420,11 +423,22 @@ const handleSaveRecord = async (record) => {
     if (res.ok) {
       const newRecord = await res.json()
       globalRecords.value.push(newRecord)
-      currentView.value = 'history'
+      // fetchUserRecords() // 필요 시 최신화
     }
   } catch (e) {
     console.error('기록 저장 실패:', e)
   }
+}
+
+/**
+ * 기록된 경로를 추천 코스 등록으로 연동
+ */
+const handleRecommendRoute = (data) => {
+  prefilledCourseData.value = {
+    path: data.path,
+    distance: data.distance
+  }
+  currentView.value = 'create'
 }
 
 const openFriendProfile = (friend) => {
@@ -604,7 +618,10 @@ const goToCreate = () => {
 
         <!-- 코스 등록 뷰 -->
         <div v-else-if="currentView === 'create'">
-          <CourseCreate @create="handleCreateCourse" />
+          <CourseCreate 
+            :prefilled-data="prefilledCourseData"
+            @create="handleCreateCourse" 
+          />
         </div>
 
         <!-- 추천 코스 뷰 -->
@@ -637,6 +654,7 @@ const goToCreate = () => {
             :shoes="userShoes"
             :api-url="API_URL"
             @save-record="handleSaveRecord"
+            @recommend-route="handleRecommendRoute"
             @back="currentView = 'history'"
           />
         </div>
@@ -711,17 +729,8 @@ const goToCreate = () => {
         </VToolbar>
         
         <VCardText class="pa-0" style="height: 400px; position: relative;">
-          <!-- 지도 컴포넌트 재사용 (또는 간단한 iframe/Leaflet) -->
-          <div v-if="showLiveMap" class="fill-height">
-            <iframe 
-              v-if="liveMapFriend"
-              width="100%" 
-              height="100%" 
-              frameborder="0" 
-              :src="`https://maps.google.com/maps?q=${liveMapFriend.latitude},${liveMapFriend.longitude}&z=15&output=embed`"
-              style="border:0"
-            ></iframe>
-          </div>
+          <!-- 실시간 이동 경로 지도 컴포넌트 -->
+          <LiveMap v-if="showLiveMap && liveMapFriend" :friend="liveMapFriend" />
         </VCardText>
         
         <VCardActions class="bg-white pa-4">
