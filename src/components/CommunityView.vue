@@ -1,13 +1,23 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   currentUser: Object,
   globalUsers: Array,
-  globalRecords: Array
+  globalRecords: Array,
+  liveFriends: Array
 })
 
-const emit = defineEmits(['open-profile'])
+const emit = defineEmits(['open-profile', 'add-friend-by-email'])
+
+const searchEmail = ref('')
+const isAdding = ref(false)
+
+const handleAddFriend = () => {
+  if (!searchEmail.value) return
+  emit('add-friend-by-email', searchEmail.value)
+  searchEmail.value = ''
+}
 
 // 내 친구 목록
 const myFriends = computed(() => {
@@ -25,8 +35,19 @@ const recommendedFriends = computed(() => {
 const getUserLatestRecord = (userId) => {
   const userRecords = props.globalRecords.filter(r => r.userId === userId)
   if (userRecords.length === 0) return null
-  // 최신 기록 하나 반환 (가정: records는 추가된 순서)
   return userRecords[userRecords.length - 1]
+}
+
+const getLiveStatus = (userId) => {
+  return props.liveFriends.find(f => f.user_id === userId)
+}
+
+const openMap = (friend) => {
+  const status = getLiveStatus(friend.id)
+  if (status) {
+    const url = `https://www.google.com/maps/search/?api=1&query=${status.latitude},${status.longitude}`
+    window.open(url, '_blank')
+  }
 }
 
 </script>
@@ -36,6 +57,34 @@ const getUserLatestRecord = (userId) => {
     <div class="section-header mb-6">
       <h2 class="text-h5 font-weight-black">러닝 커뮤니티</h2>
       <p class="text-caption text-grey">친구들과 러닝 기록을 공유해보세요</p>
+    </div>
+
+    <!-- 친구 추가 검색창 -->
+    <div class="mb-8">
+      <VTextField
+        v-model="searchEmail"
+        label="친구 이메일로 찾기"
+        placeholder="friend@example.com"
+        variant="outlined"
+        rounded="xl"
+        density="comfortable"
+        hide-details
+        prepend-inner-icon="mdi-account-search"
+        @keyup.enter="handleAddFriend"
+      >
+        <template v-slot:append-inner>
+          <VBtn 
+            color="primary" 
+            variant="flat" 
+            size="small" 
+            rounded="lg" 
+            class="px-4"
+            @click="handleAddFriend"
+          >
+            추가
+          </VBtn>
+        </template>
+      </VTextField>
     </div>
 
     <!-- 내 친구 목록 -->
@@ -61,15 +110,31 @@ const getUserLatestRecord = (userId) => {
             <span class="text-h6 text-white font-weight-bold">{{ friend.name[0] }}</span>
           </VAvatar>
           <div class="flex-grow-1">
-            <div class="font-weight-bold">{{ friend.name }}</div>
+            <div class="d-flex align-center">
+              <div class="font-weight-bold">{{ friend.name }}</div>
+              <VChip v-if="getLiveStatus(friend.id)" color="error" size="x-small" class="ml-2 animate-pulse" variant="flat">
+                LIVE
+              </VChip>
+            </div>
             <div class="text-caption text-grey">
-              <span v-if="getUserLatestRecord(friend.id)">
+              <span v-if="getLiveStatus(friend.id)" class="text-error font-weight-bold">
+                🔥 지금 달리는 중!
+              </span>
+              <span v-else-if="getUserLatestRecord(friend.id)">
                 최근 러닝: {{ getUserLatestRecord(friend.id).distance }}km ({{ getUserLatestRecord(friend.id).pace }})
               </span>
               <span v-else>최근 러닝 기록 없음</span>
             </div>
           </div>
-          <VIcon icon="mdi-chevron-right" color="grey-lighten-1" />
+          <VBtn 
+            v-if="getLiveStatus(friend.id)" 
+            icon="mdi-map-marker" 
+            variant="text" 
+            color="error" 
+            size="small" 
+            @click.stop="openMap(friend)" 
+          />
+          <VIcon v-else icon="mdi-chevron-right" color="grey-lighten-1" />
         </div>
       </VCard>
     </div>
@@ -129,5 +194,14 @@ const getUserLatestRecord = (userId) => {
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+.animate-pulse {
+  animation: pulse-red 1.5s infinite;
+}
+
+@keyframes pulse-red {
+  0% { opacity: 0.7; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0.7; transform: scale(0.95); }
 }
 </style>

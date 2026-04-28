@@ -34,7 +34,9 @@ const showAuthDialog = ref(false)
 const globalUsers = ref([])
 const globalRecords = ref([])
 const userShoes = ref([])
+const liveFriends = ref([]) // 실시간 친구 위치
 const selectedFriend = ref(null)
+const liveFriendsTimer = ref(null)
 const showFriendProfile = ref(false)
 
 const courses = ref([])
@@ -75,6 +77,7 @@ onMounted(async () => {
       isLoggedIn.value = true
       fetchUserRecords()
       fetchUserShoes()
+      startLiveFriendsPolling()
     }
   } else if (savedToken && savedUser) {
      // 구버전(만료시간 없는) 데이터 호환성
@@ -116,6 +119,24 @@ const fetchUserShoes = async () => {
   } catch (e) {
     console.error('신발 로딩 실패:', e)
   }
+}
+
+const fetchLiveFriends = async () => {
+  if (!currentUser.value || !isLoggedIn.value) return
+  try {
+    const res = await fetch(`${API_URL}/live/friends?user_id=${currentUser.value.id}`)
+    if (res.ok) {
+      liveFriends.value = await res.json()
+    }
+  } catch (e) {
+    console.error('실시간 친구 위치 로딩 실패:', e)
+  }
+}
+
+const startLiveFriendsPolling = () => {
+  fetchLiveFriends()
+  if (liveFriendsTimer.value) clearInterval(liveFriendsTimer.value)
+  liveFriendsTimer.value = setInterval(fetchLiveFriends, 15000) // 15초마다 갱신
 }
 
 /**
@@ -224,6 +245,7 @@ const handleLogin = (authResponse) => {
   
   fetchUserRecords()
   fetchUserShoes()
+  startLiveFriendsPolling()
 }
 
 /**
@@ -312,6 +334,40 @@ const handleSaveRecord = async (record) => {
     console.error('기록 저장 실패:', e)
   }
 }
+
+const openFriendProfile = (friend) => {
+  selectedFriend.value = friend
+  showFriendProfile.value = true
+}
+
+const handleAddFriendByEmail = async (email) => {
+  if (!currentUser.value) return
+  try {
+    const res = await fetch(`${API_URL}/users/add-friend?user_id=${currentUser.value.id}&friend_email=${email}`, {
+      method: 'POST'
+    })
+    const data = await res.json()
+    if (res.ok) {
+      alert(data.message)
+      // 사용자 목록 및 본인 정보 갱신
+      const userRes = await fetch(`${API_URL}/users`)
+      if (userRes.ok) {
+        globalUsers.value = await userRes.json()
+        const updatedMe = globalUsers.value.find(u => u.id === currentUser.value.id)
+        if (updatedMe) {
+          currentUser.value = updatedMe
+          localStorage.setItem('rundanggeun_user', JSON.stringify(updatedMe))
+        }
+      }
+    } else {
+      alert(data.detail || '친구 추가에 실패했습니다.')
+    }
+  } catch (e) {
+    console.error('친구 추가 실패:', e)
+    alert('서버 연결에 실패했습니다.')
+  }
+}
+
 const goToRecord = () => {
   if (!isLoggedIn.value) {
     showAuthDialog.value = true
@@ -429,6 +485,7 @@ const goToCreate = () => {
           <RunningRecord 
             :user-id="currentUser?.id"
             :shoes="userShoes"
+            :api-url="API_URL"
             @save-record="handleSaveRecord"
             @back="currentView = 'history'"
           />
@@ -440,7 +497,9 @@ const goToCreate = () => {
             :current-user="currentUser"
             :global-users="globalUsers"
             :global-records="globalRecords"
+            :live-friends="liveFriends"
             @open-profile="openFriendProfile"
+            @add-friend-by-email="handleAddFriendByEmail"
           />
         </div>
 

@@ -6,7 +6,8 @@ import 'leaflet/dist/leaflet.css'
 
 const props = defineProps({
   userId: Number,
-  shoes: Array
+  shoes: Array,
+  apiUrl: String
 })
 
 const emit = defineEmits(['save-record', 'back'])
@@ -72,6 +73,11 @@ const startRunning = () => {
     elapsedTime.value++
   }, 1000)
 
+  // 1.5 실시간 위치 공유 타이머 (10초마다 서버 전송)
+  liveUpdateTimer.value = setInterval(() => {
+    sendLiveLocation(true)
+  }, 10000)
+
   // 2. 실제 GPS 위치 추적 및 거리 계산
   if (navigator.geolocation) {
     watchId = navigator.geolocation.watchPosition(
@@ -109,6 +115,19 @@ const startRunning = () => {
         timeout: 5000
       }
     )
+  }
+}
+
+const sendLiveLocation = async (isActive) => {
+  if (!props.userId || !props.apiUrl || currentPath.value.length === 0) return
+  
+  const lastPos = currentPath.value[currentPath.value.length - 1]
+  try {
+    await fetch(`${props.apiUrl}/live/update?user_id=${props.userId}&lat=${lastPos[0]}&lng=${lastPos[1]}&is_active=${isActive}`, {
+      method: 'POST'
+    })
+  } catch (e) {
+    console.error('실시간 위치 전송 실패:', e)
   }
 }
 
@@ -172,6 +191,10 @@ const pauseRunning = () => {
     navigator.geolocation.clearWatch(watchId)
     watchId = null
   }
+  if (liveUpdateTimer.value) {
+    clearInterval(liveUpdateTimer.value)
+    liveUpdateTimer.value = null
+  }
 }
 
 const stopRunning = () => {
@@ -189,6 +212,7 @@ const stopRunning = () => {
     emit('save-record', record)
     alert('러닝이 기록되었습니다!')
   }
+  sendLiveLocation(false) // 공유 종료 알림
   emit('back')
 }
 

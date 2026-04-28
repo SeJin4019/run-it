@@ -78,6 +78,32 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
 def get_users(db: Session = Depends(get_db)):
     return db.query(models.User).all()
 
+@app.post("/api/users/add-friend")
+def add_friend(user_id: int, friend_email: str, db: Session = Depends(get_db)):
+    # 본인 확인
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+    
+    # 추가할 친구 확인
+    friend = db.query(models.User).filter(models.User.email == friend_email).first()
+    if not friend:
+        raise HTTPException(status_code=404, detail="해당 이메일의 사용자를 찾을 수 없습니다.")
+    
+    if friend.id == user_id:
+        raise HTTPException(status_code=400, detail="자기 자신은 친구로 추가할 수 없습니다.")
+    
+    # 친구 목록 업데이트
+    current_friends = list(user.friends) if user.friends else []
+    if friend.id in current_friends:
+        raise HTTPException(status_code=400, detail="이미 친구로 등록된 사용자입니다.")
+    
+    current_friends.append(friend.id)
+    user.friends = current_friends
+    db.commit()
+    
+    return {"message": f"{friend.name}님을 친구로 추가했습니다.", "friend": friend}
+
 # --- 코스 API ---
 @app.get("/api/courses", response_model=List[schemas.Course])
 def get_courses(db: Session = Depends(get_db)):
@@ -161,6 +187,46 @@ def delete_shoe(shoe_id: int, db: Session = Depends(get_db)):
     db.delete(db_shoe)
     db.commit()
     return {"message": "신발이 삭제되었습니다."}
+
+# --- 실시간 위치 공유 API ---
+@app.post("/api/live/update")
+def update_live_location(user_id: int, lat: float, lng: float, is_active: bool, db: Session = Depends(get_db)):
+    db_loc = db.query(models.LiveLocation).filter(models.LiveLocation.user_id == user_id).first()
+    if not db_loc:
+        db_loc = models.LiveLocation(user_id=user_id, latitude=lat, longitude=lng, is_active=is_active)
+        db.add(db_loc)
+    else:
+        db_loc.latitude = lat
+        db_loc.longitude = lng
+        db_loc.is_active = is_active
+    
+    db.commit()
+    return {"status": "success"}
+
+@app.get("/api/live/friends")
+def get_friends_live_locations(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user or not user.friends:
+        return []
+    
+    # 5분 이내에 업데이트된 활성 상태의 친구만 조회
+    time_threshold = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
+    
+    live_friends = db.query(models.LiveLocation).join(models.User, models.LiveLocation.user_id == models.User.id)\
+        .filter(models.LiveLocation.user_id.in_(user.friends))\
+        .filter(models.LiveLocation.is_active == True)\
+        .filter(models.LiveLocation.last_updated >= time_threshold).all()
+    
+    result = []
+    for loc in live_friends:
+        result.append({
+            "user_id": loc.user_id,
+            "name": loc.user.name,
+            "latitude": loc.latitude,
+            "longitude": loc.longitude,
+            "last_updated": loc.last_updated
+        })
+    return result
 
 if __name__ == "__main__":
     import uvicorn

@@ -62,3 +62,15 @@ class Shoe(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     user = relationship("User", back_populates="shoes")
+
+class LiveLocation(Base):
+    __tablename__ = "live_locations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True)
+    latitude = Column(Float)
+    longitude = Column(Float)
+    is_active = Column(Boolean, default=False)
+    last_updated = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    user = relationship("User")
