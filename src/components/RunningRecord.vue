@@ -18,6 +18,7 @@ const isRunning = ref(false)
 const elapsedTime = ref(0) // seconds
 const distance = ref(0.0) // km
 const timer = ref(null)
+const liveUpdateTimer = ref(null) // 실시간 위치 공유용 타이머 추가
 
 // Map & GPS related
 const mapContainer = ref(null)
@@ -321,41 +322,45 @@ onUnmounted(() => {
     </div>
 
     <div class="controls d-flex justify-center align-center">
+      <!-- 1. 시작 전 상태 -->
       <VBtn
         v-if="!isRunning && elapsedTime === 0"
         color="primary"
         size="x-large"
-        class="action-btn rounded-circle"
+        class="action-btn-large rounded-circle"
         icon="mdi-play"
         @click="startRunning"
       />
       
-      <template v-else>
+      <!-- 2. 실행 중 상태 (커다란 빨간색 일시정지 버튼) -->
+      <VBtn
+        v-else-if="isRunning"
+        color="error"
+        size="x-large"
+        class="action-btn-large rounded-circle shadow-lg"
+        icon="mdi-pause"
+        @click="pauseRunning"
+      />
+
+      <!-- 3. 일시정지 상태 (다시 시작 및 최종 종료) -->
+      <div v-else class="d-flex align-center gap-6">
         <VBtn
-          v-if="isRunning"
-          color="warning"
+          color="success"
           size="x-large"
-          class="action-btn rounded-circle mx-4"
-          icon="mdi-pause"
-          @click="pauseRunning"
-        />
-        <VBtn
-          v-else
-          color="primary"
-          size="x-large"
-          class="action-btn rounded-circle mx-4"
+          class="action-btn rounded-circle"
           icon="mdi-play"
           @click="startRunning"
         />
-        
         <VBtn
-          color="error"
-          size="large"
-          class="rounded-circle"
-          icon="mdi-stop"
-          @click="stopRunning"
-        />
-      </template>
+          color="orange-darken-2"
+          size="x-large"
+          class="action-btn rounded-xl px-8"
+          prepend-icon="mdi-stop"
+          @click="saveRecord"
+        >
+          기록 종료
+        </VBtn>
+      </div>
     </div>
     
     <div class="text-center mt-6" v-if="isRunning">
@@ -386,8 +391,21 @@ onUnmounted(() => {
 }
 
 .action-btn {
-  width: 80px !important;
-  height: 80px !important;
+  width: 64px !important;
+  height: 64px !important;
+}
+
+.action-btn-large {
+  width: 90px !important;
+  height: 90px !important;
+}
+
+.gap-6 {
+  gap: 24px;
+}
+
+.shadow-lg {
+  box-shadow: 0 10px 25px rgba(231, 76, 60, 0.4) !important;
 }
 
 .animate-pulse {

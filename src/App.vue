@@ -135,19 +135,21 @@ const fetchUserShoes = async () => {
 
 const fetchLiveFriends = async () => {
   if (!currentUser.value || !isLoggedIn.value) return
-  fetchPendingRequests() // 친구 요청도 함께 체크
+  fetchPendingRequests()
   try {
     const res = await fetch(`${API_URL}/live/friends?user_id=${currentUser.value.id}`)
     if (res.ok) {
       const newData = await res.json()
       
-      // 새로 러닝을 시작한 친구 확인 (이전 데이터에는 없는데 현재 데이터에 있는 친구)
-      newData.forEach(friend => {
-        const wasRunning = previousLiveFriends.value.some(p => p.user_id === friend.user_id)
-        if (!wasRunning) {
-          showRunningNotification(friend)
-        }
-      })
+      // 알림 로직: 처음 로딩 시에는 알림을 띄우지 않고, 이후 추가된 친구만 알림
+      if (previousLiveFriends.value.length > 0) {
+        newData.forEach(friend => {
+          const isNewlyRunning = !previousLiveFriends.value.some(p => p.user_id === friend.user_id)
+          if (isNewlyRunning) {
+            showRunningNotification(friend)
+          }
+        });
+      }
       
       liveFriends.value = newData
       previousLiveFriends.value = newData
@@ -551,6 +553,24 @@ const goToCreate = () => {
         <div v-if="currentView === 'discover'">
           <HeroSection v-model="searchQuery" @find-me="handleFindMe" />
           
+          <!-- 실시간 친구 활동 상태 바 -->
+          <VExpandTransition>
+            <div v-if="liveFriends.length > 0" class="live-status-bar mb-6 px-4">
+              <VCard color="error" theme="dark" class="rounded-xl pa-4 d-flex align-center shadow-lg clickable-card" @click="openFriendMap(liveFriends[0])">
+                <div class="live-pulse-container mr-3">
+                  <div class="live-pulse-dot"></div>
+                </div>
+                <div class="flex-grow-1">
+                  <div class="text-subtitle-2 font-weight-black">LIVE : 친구가 달리고 있어요!</div>
+                  <div class="text-caption opacity-80">
+                    {{ liveFriends.map(f => f.name).join(', ') }}님이 현재 러닝 중입니다.
+                  </div>
+                </div>
+                <VBtn variant="tonal" size="small" class="rounded-lg ml-2">위치 보기</VBtn>
+              </VCard>
+            </div>
+          </VExpandTransition>
+          
           <div class="content-section">
             <div class="section-header animate-fade-in">
               <h2 class="text-h6 font-weight-bold">우리 동네 러닝 게시판</h2>
@@ -750,9 +770,9 @@ const goToCreate = () => {
         <span>홈</span>
       </VBtn>
 
-      <VBtn value="community" v-if="isLoggedIn">
-        <VIcon icon="mdi-account-group" />
-        <span>커뮤니티</span>
+      <VBtn value="recommend">
+        <VIcon icon="mdi-star" />
+        <span>추천</span>
       </VBtn>
 
       <!-- 중앙 기록 버튼 (FAB) -->
@@ -767,9 +787,9 @@ const goToCreate = () => {
         </VBtn>
       </div>
 
-      <VBtn value="recommend">
-        <VIcon icon="mdi-star" />
-        <span>추천</span>
+      <VBtn value="community" v-if="isLoggedIn">
+        <VIcon icon="mdi-account-group" />
+        <span>커뮤니티</span>
       </VBtn>
 
       <VBtn value="history" v-if="isLoggedIn">
@@ -895,6 +915,50 @@ const goToCreate = () => {
 .main-footer {
   background: #f8f9fa;
   border-top: 1px solid #e9ecef;
+}
+
+/* 실시간 상태 바 애니메이션 */
+.live-status-bar {
+  cursor: pointer;
+}
+
+.live-pulse-container {
+  position: relative;
+  width: 12px;
+  height: 12px;
+}
+
+.live-pulse-dot {
+  width: 12px;
+  height: 12px;
+  background-color: white;
+  border-radius: 50%;
+  position: relative;
+}
+
+.live-pulse-dot::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: white;
+  border-radius: 50%;
+  animation: live-pulse-anim 1.5s infinite ease-in-out;
+}
+
+@keyframes live-pulse-anim {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(3); opacity: 0; }
+}
+
+.clickable-card {
+  transition: transform 0.2s;
+}
+
+.clickable-card:active {
+  transform: scale(0.98);
 }
 </style>
 
