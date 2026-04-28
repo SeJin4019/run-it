@@ -211,7 +211,7 @@ const resetForm = () => {
         <VCol cols="12" class="d-flex justify-center mb-4">
           <div 
             class="image-upload-box" 
-            :style="{ backgroundImage: `url(${previewImage})` }"
+            :style="previewImage ? { backgroundImage: `url(${previewImage})` } : {}"
             @click="$refs.fileInput.click()"
           >
             <input 
