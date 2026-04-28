@@ -79,7 +79,7 @@ def get_users(db: Session = Depends(get_db)):
     return db.query(models.User).all()
 
 @app.post("/api/users/add-friend")
-def add_friend(user_id: int, friend_email: str, db: Session = Depends(get_db)):
+def send_friend_request(user_id: int, friend_email: str, db: Session = Depends(get_db)):
     # 본인 확인
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -91,18 +91,76 @@ def add_friend(user_id: int, friend_email: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="해당 이메일의 사용자를 찾을 수 없습니다.")
     
     if friend.id == user_id:
-        raise HTTPException(status_code=400, detail="자기 자신은 친구로 추가할 수 없습니다.")
+        raise HTTPException(status_code=400, detail="자기 자신에게는 요청할 수 없습니다.")
     
-    # 친구 목록 업데이트
-    current_friends = list(user.friends) if user.friends else []
-    if friend.id in current_friends:
-        raise HTTPException(status_code=400, detail="이미 친구로 등록된 사용자입니다.")
-    
-    current_friends.append(friend.id)
-    user.friends = current_friends
+    # 이미 친구인지 확인
+    if friend.id in (user.friends or []):
+        raise HTTPException(status_code=400, detail="이미 친구인 사용자입니다.")
+        
+    # 이미 요청을 보냈는지 확인
+    existing = db.query(models.FriendRequest).filter(
+        models.FriendRequest.from_user_id == user_id,
+        models.FriendRequest.to_user_id == friend.id,
+        models.FriendRequest.status == "pending"
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="이미 친구 요청을 보낸 상태입니다.")
+
+    new_request = models.FriendRequest(from_user_id=user_id, to_user_id=friend.id)
+    db.add(new_request)
     db.commit()
+    return {"message": f"{friend.name}님께 친구 요청을 보냈습니다."}
+
+@app.get("/api/users/friend-requests/{user_id}")
+def get_pending_requests(user_id: int, db: Session = Depends(get_db)):
+    requests = db.query(models.FriendRequest).filter(
+        models.FriendRequest.to_user_id == user_id,
+        models.FriendRequest.status == "pending"
+    ).all()
     
-    return {"message": f"{friend.name}님을 친구로 추가했습니다.", "friend": friend}
+    result = []
+    for r in requests:
+        result.append({
+            "request_id": r.id,
+            "from_user_id": r.from_user_id,
+            "from_user_name": r.from_user.name,
+            "from_user_email": r.from_user.email
+        })
+    return result
+
+@app.post("/api/users/friend-requests/accept")
+def accept_friend_request(request_id: int, db: Session = Depends(get_db)):
+    request = db.query(models.FriendRequest).filter(models.FriendRequest.id == request_id).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="요청을 찾을 수 없습니다.")
+    
+    # 상호 친구 등록
+    from_user = db.query(models.User).filter(models.User.id == request.from_user_id).first()
+    to_user = db.query(models.User).filter(models.User.id == request.to_user_id).first()
+    
+    if from_user and to_user:
+        f1 = list(from_user.friends) if from_user.friends else []
+        f2 = list(to_user.friends) if to_user.friends else []
+        
+        if to_user.id not in f1: f1.append(to_user.id)
+        if from_user.id not in f2: f2.append(from_user.id)
+        
+        from_user.friends = f1
+        to_user.friends = f2
+    
+    request.status = "accepted"
+    db.commit()
+    return {"message": "친구 요청을 수락했습니다."}
+
+@app.post("/api/users/friend-requests/decline")
+def decline_friend_request(request_id: int, db: Session = Depends(get_db)):
+    request = db.query(models.FriendRequest).filter(models.FriendRequest.id == request_id).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="요청을 찾을 수 없습니다.")
+    
+    request.status = "declined"
+    db.commit()
+    return {"message": "친구 요청을 거절했습니다."}
 
 @app.post("/api/users/remove-friend")
 def remove_friend(user_id: int, friend_id: int, db: Session = Depends(get_db)):

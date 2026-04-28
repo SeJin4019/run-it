@@ -5,10 +5,11 @@ const props = defineProps({
   currentUser: Object,
   globalUsers: Array,
   globalRecords: Array,
-  liveFriends: Array
+  liveFriends: Array,
+  pendingRequests: Array
 })
 
-const emit = defineEmits(['open-profile', 'add-friend-by-email'])
+const emit = defineEmits(['open-profile', 'add-friend-by-email', 'accept-request', 'decline-request'])
 
 const searchEmail = ref('')
 const isAdding = ref(false)
@@ -85,6 +86,49 @@ const openMap = (friend) => {
           </VBtn>
         </template>
       </VTextField>
+    </div>
+
+    <!-- 친구 요청 목록 (받은 요청이 있을 때만 표시) -->
+    <div v-if="pendingRequests && pendingRequests.length > 0" class="mb-8">
+      <h3 class="text-subtitle-1 font-weight-bold mb-3 d-flex align-center text-primary">
+        <VIcon icon="mdi-account-alert" class="mr-2" /> 받은 친구 요청 ({{ pendingRequests.length }})
+      </h3>
+      <VCard
+        v-for="req in pendingRequests"
+        :key="req.request_id"
+        flat
+        class="rounded-xl border pa-4 mb-3"
+      >
+        <div class="d-flex align-center">
+          <VAvatar color="primary-lighten-4" size="40" class="mr-3">
+            <span class="text-caption font-weight-bold">{{ req.from_user_name[0] }}</span>
+          </VAvatar>
+          <div class="flex-grow-1">
+            <div class="font-weight-bold">{{ req.from_user_name }}</div>
+            <div class="text-caption text-grey">{{ req.from_user_email }}</div>
+          </div>
+          <div class="d-flex gap-2">
+            <VBtn 
+              size="small" 
+              color="primary" 
+              variant="flat" 
+              rounded="lg"
+              @click="emit('accept-request', req.request_id)"
+            >
+              수락
+            </VBtn>
+            <VBtn 
+              size="small" 
+              color="grey" 
+              variant="tonal" 
+              rounded="lg"
+              @click="emit('decline-request', req.request_id)"
+            >
+              거절
+            </VBtn>
+          </div>
+        </div>
+      </VCard>
     </div>
 
     <!-- 내 친구 목록 -->

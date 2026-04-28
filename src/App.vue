@@ -36,6 +36,7 @@ const globalRecords = ref([])
 const userShoes = ref([])
 const liveFriends = ref([]) // 실시간 친구 위치
 const previousLiveFriends = ref([]) // 이전 상태 저장용
+const pendingRequests = ref([]) // 대기 중인 친구 요청
 const selectedFriend = ref(null)
 const liveFriendsTimer = ref(null)
 const showFriendProfile = ref(false)
@@ -132,6 +133,7 @@ const fetchUserShoes = async () => {
 
 const fetchLiveFriends = async () => {
   if (!currentUser.value || !isLoggedIn.value) return
+  fetchPendingRequests() // 친구 요청도 함께 체크
   try {
     const res = await fetch(`${API_URL}/live/friends?user_id=${currentUser.value.id}`)
     if (res.ok) {
@@ -166,6 +168,57 @@ const openFriendMap = (friend) => {
   if (!friend) return
   const url = `https://www.google.com/maps/search/?api=1&query=${friend.latitude},${friend.longitude}`
   window.open(url, '_blank')
+}
+
+const fetchPendingRequests = async () => {
+  if (!currentUser.value || !isLoggedIn.value) return
+  try {
+    const res = await fetch(`${API_URL}/users/friend-requests/${currentUser.value.id}`)
+    if (res.ok) {
+      pendingRequests.value = await res.json()
+    }
+  } catch (e) {
+    console.error('친구 요청 로딩 실패:', e)
+  }
+}
+
+const handleAcceptRequest = async (requestId) => {
+  try {
+    const res = await fetch(`${API_URL}/users/friend-requests/accept?request_id=${requestId}`, {
+      method: 'POST'
+    })
+    if (res.ok) {
+      const data = await res.json()
+      alert(data.message)
+      fetchPendingRequests()
+      // 전체 유저 및 내 정보 갱신
+      const userRes = await fetch(`${API_URL}/users`)
+      if (userRes.ok) {
+        globalUsers.value = await userRes.json()
+        const updatedMe = globalUsers.value.find(u => u.id === currentUser.value.id)
+        if (updatedMe) {
+          currentUser.value = updatedMe
+          localStorage.setItem('rundanggeun_user', JSON.stringify(updatedMe))
+        }
+      }
+    }
+  } catch (e) {
+    console.error('요청 수락 실패:', e)
+  }
+}
+
+const handleDeclineRequest = async (requestId) => {
+  try {
+    const res = await fetch(`${API_URL}/users/friend-requests/decline?request_id=${requestId}`, {
+      method: 'POST'
+    })
+    if (res.ok) {
+      alert('요청을 거절했습니다.')
+      fetchPendingRequests()
+    }
+  } catch (e) {
+    console.error('요청 거절 실패:', e)
+  }
 }
 
 const startLiveFriendsPolling = () => {
@@ -573,8 +626,11 @@ const goToCreate = () => {
             :global-users="globalUsers"
             :global-records="globalRecords"
             :live-friends="liveFriends"
+            :pending-requests="pendingRequests"
             @open-profile="openFriendProfile"
             @add-friend-by-email="handleAddFriendByEmail"
+            @accept-request="handleAcceptRequest"
+            @decline-request="handleDeclineRequest"
           />
         </div>
 
