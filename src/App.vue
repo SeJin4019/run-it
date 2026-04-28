@@ -449,9 +449,25 @@ const handleRecommendRoute = (data) => {
   currentView.value = 'create'
 }
 
-const openFriendProfile = (friend) => {
+const selectedFriendRecords = ref([])
+const selectedFriendShoes = ref([])
+
+const openFriendProfile = async (friend) => {
   selectedFriend.value = friend
   showFriendProfile.value = true
+  selectedFriendRecords.value = []
+  selectedFriendShoes.value = []
+  
+  try {
+    const [recRes, shoeRes] = await Promise.all([
+      fetch(`${API_URL}/records/${friend.id}`),
+      fetch(`${API_URL}/shoes/${friend.id}`)
+    ])
+    if (recRes.ok) selectedFriendRecords.value = await recRes.json()
+    if (shoeRes.ok) selectedFriendShoes.value = await shoeRes.json()
+  } catch (e) {
+    console.error('친구 데이터 로딩 실패:', e)
+  }
 }
 
 const handleAddFriendByEmail = async (email) => {
@@ -735,7 +751,8 @@ const goToCreate = () => {
         <VCardText class="pt-0 pb-6">
           <UserHistory 
             :user="selectedFriend"
-            :records="globalRecords.filter(r => r.user_id === selectedFriend.id)"
+            :records="selectedFriendRecords"
+            :shoes="selectedFriendShoes"
             :is-me="false"
             :is-friend="currentUser?.friends?.includes(selectedFriend.id)"
             @add-friend="handleAddFriend"
