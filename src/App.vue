@@ -40,6 +40,8 @@ const pendingRequests = ref([]) // 대기 중인 친구 요청
 const selectedFriend = ref(null)
 const liveFriendsTimer = ref(null)
 const showFriendProfile = ref(false)
+const showLiveMap = ref(false) // 실시간 지도 팝업
+const liveMapFriend = ref(null) // 현재 지도에서 보고 있는 친구
 
 // 알림용 스낵바 상태
 const snackbar = ref({
@@ -158,7 +160,7 @@ const fetchLiveFriends = async () => {
 const showRunningNotification = (friend) => {
   snackbar.value = {
     show: true,
-    text: `🏃‍♂️ ${friend.name}님이 지금 러닝을 시작했습니다!`,
+    text: `🔥 ${friend.name}님이 지금 러닝을 시작했습니다!`,
     color: 'error',
     friend: friend
   }
@@ -166,8 +168,8 @@ const showRunningNotification = (friend) => {
 
 const openFriendMap = (friend) => {
   if (!friend) return
-  const url = `https://www.google.com/maps/search/?api=1&query=${friend.latitude},${friend.longitude}`
-  window.open(url, '_blank')
+  liveMapFriend.value = friend
+  showLiveMap.value = true
 }
 
 const fetchPendingRequests = async () => {
@@ -631,6 +633,7 @@ const goToCreate = () => {
             @add-friend-by-email="handleAddFriendByEmail"
             @accept-request="handleAcceptRequest"
             @decline-request="handleDeclineRequest"
+            @open-live-map="openFriendMap"
           />
         </div>
 
@@ -672,6 +675,41 @@ const goToCreate = () => {
             @remove-friend="handleRemoveFriend"
           />
         </VCardText>
+      </VCard>
+    </VDialog>
+
+    <!-- 실시간 위치 추적 다이얼로그 (앱 내부 지도) -->
+    <VDialog v-model="showLiveMap" max-width="600">
+      <VCard class="rounded-xl overflow-hidden">
+        <VToolbar color="error" dark flat>
+          <VIcon icon="mdi-map-marker-radius" class="mr-2" />
+          <VToolbarTitle class="text-subtitle-1 font-weight-bold">
+            {{ liveMapFriend?.name }}님의 실시간 위치
+          </VToolbarTitle>
+          <VSpacer />
+          <VBtn icon="mdi-close" @click="showLiveMap = false" />
+        </VToolbar>
+        
+        <VCardText class="pa-0" style="height: 400px; position: relative;">
+          <!-- 지도 컴포넌트 재사용 (또는 간단한 iframe/Leaflet) -->
+          <div v-if="showLiveMap" class="fill-height">
+            <iframe 
+              v-if="liveMapFriend"
+              width="100%" 
+              height="100%" 
+              frameborder="0" 
+              :src="`https://maps.google.com/maps?q=${liveMapFriend.latitude},${liveMapFriend.longitude}&z=15&output=embed`"
+              style="border:0"
+            ></iframe>
+          </div>
+        </VCardText>
+        
+        <VCardActions class="bg-white pa-4">
+          <VIcon icon="mdi-clock-outline" size="16" class="mr-1 text-grey" />
+          <span class="text-caption text-grey">마지막 업데이트: 방금 전</span>
+          <VSpacer />
+          <VBtn color="primary" variant="tonal" rounded="lg" @click="showLiveMap = false">닫기</VBtn>
+        </VCardActions>
       </VCard>
     </VDialog>
 

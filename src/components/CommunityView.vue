@@ -9,7 +9,7 @@ const props = defineProps({
   pendingRequests: Array
 })
 
-const emit = defineEmits(['open-profile', 'add-friend-by-email', 'accept-request', 'decline-request'])
+const emit = defineEmits(['open-profile', 'add-friend-by-email', 'accept-request', 'decline-request', 'open-live-map'])
 
 const searchEmail = ref('')
 const isAdding = ref(false)
@@ -46,8 +46,7 @@ const getLiveStatus = (userId) => {
 const openMap = (friend) => {
   const status = getLiveStatus(friend.id)
   if (status) {
-    const url = `https://www.google.com/maps/search/?api=1&query=${status.latitude},${status.longitude}`
-    window.open(url, '_blank')
+    emit('open-live-map', status)
   }
 }
 

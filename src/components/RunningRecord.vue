@@ -197,13 +197,35 @@ const pauseRunning = () => {
   }
 }
 
-const stopRunning = () => {
-  pauseRunning()
-  if (distance.value > 0.01) {
+const stopRunning = async () => {
+  isRunning.value = false
+  if (timer.value) {
+    clearInterval(timer.value)
+    timer.value = null
+  }
+  if (watchId) {
+    navigator.geolocation.clearWatch(watchId)
+    watchId = null
+  }
+  if (liveUpdateTimer.value) {
+    clearInterval(liveUpdateTimer.value)
+    liveUpdateTimer.value = null
+  }
+  
+  // 실시간 공유 종료 서버 알림
+  try {
+    await sendLiveLocation(false)
+  } catch (e) {
+    console.error('공유 종료 알림 실패:', e)
+  }
+}
+
+const saveRecord = async () => {
+  await stopRunning()
+  
+  if (currentPath.value.length > 0) {
     const record = {
-      id: Date.now(),
-      date: new Date().toISOString(),
-      distance: distance.value.toFixed(2),
+      distance: distance.value,
       time: formattedTime.value,
       pace: pace.value,
       calories: calories.value,
@@ -212,9 +234,9 @@ const stopRunning = () => {
     emit('save-record', record)
     alert('러닝이 기록되었습니다!')
   }
-  sendLiveLocation(false) // 공유 종료 알림
   emit('back')
 }
+
 
 onUnmounted(() => {
   if (timer.value) clearInterval(timer.value)
