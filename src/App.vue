@@ -268,10 +268,28 @@ const openDetail = (course) => {
 /**
  * 댓글 업데이트 핸들러
  */
-const handleUpdateComments = ({ courseId, comments }) => {
+const handleUpdateComments = async ({ courseId, comments }) => {
   const course = courses.value.find(c => c.id === courseId)
-  if (course) {
-    course.comments = comments
+  if (!course) return
+  
+  course.comments = comments
+  const newComment = comments[comments.length - 1]
+  
+  try {
+    const res = await fetch(`${API_URL}/courses/${courseId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newComment)
+    })
+    if (res.ok) {
+      const updatedCourse = await res.json()
+      const index = courses.value.findIndex(c => c.id === courseId)
+      if (index !== -1) {
+        courses.value[index] = updatedCourse
+      }
+    }
+  } catch (e) {
+    console.error('댓글 업데이트 실패:', e)
   }
 }
 /**

@@ -32,6 +32,7 @@ class Course(Base):
     path = Column(JSON) # [[lat, lng], ...] 형태
     author_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    comments = Column(JSON, default=list)
 
     author = relationship("User", back_populates="courses")
 

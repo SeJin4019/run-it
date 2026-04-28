@@ -33,6 +33,7 @@ class CourseBase(BaseModel):
     description: Optional[str] = None
     image: Optional[str] = None
     path: List[List[float]]
+    comments: Optional[List[dict]] = []
 
 class CourseCreate(CourseBase):
     pass

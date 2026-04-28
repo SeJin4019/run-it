@@ -19,6 +19,7 @@ try:
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS friends JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
+        conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS comments JSON DEFAULT '[]'::json;"))
 except Exception as e:
     print("Migration Error:", e)
 
@@ -226,6 +227,24 @@ def delete_course(course_id: int, user_id: int, db: Session = Depends(get_db)):
     db.delete(db_course)
     db.commit()
     return {"message": "코스가 삭제되었습니다."}
+
+@app.post("/api/courses/{course_id}/comments", response_model=schemas.Course)
+def add_course_comment(course_id: int, comment: dict, db: Session = Depends(get_db)):
+    db_course = db.query(models.Course).filter(models.Course.id == course_id).first()
+    if not db_course:
+        raise HTTPException(status_code=404, detail="코스를 찾을 수 없습니다.")
+    
+    current_comments = list(db_course.comments) if db_course.comments else []
+    current_comments.append(comment)
+    db_course.comments = current_comments
+    db.commit()
+    db.refresh(db_course)
+    
+    if db_course.author:
+        db_course.author_name = db_course.author.name
+    else:
+        db_course.author_name = "익명"
+    return db_course
 
 # --- 러닝 기록 API ---
 @app.get("/api/records/{user_id}", response_model=List[schemas.Record])

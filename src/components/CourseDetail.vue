@@ -38,13 +38,17 @@ const comments = ref(props.course.comments || [])
  * 새 댓글 추가 처리
  */
 const addComment = () => {
+  if (!props.currentUser) {
+    alert("로그인 후 댓글을 작성할 수 있습니다.")
+    return
+  }
   if (!newComment.value.trim()) return
   
   const comment = {
     id: Date.now(),
     text: newComment.value,
     date: new Date().toLocaleString('ko-KR'),
-    user: '이웃러너'
+    user: props.currentUser.name
   }
   
   comments.value.push(comment)
