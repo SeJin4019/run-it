@@ -9,6 +9,15 @@ from database import engine, get_db
 # DB 테이블 생성
 models.Base.metadata.create_all(bind=engine)
 
+# 누락된 컬럼 자동 마이그레이션 (Render DB 배포용)
+try:
+    with engine.begin() as conn:
+        from sqlalchemy import text
+        conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
+        conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS shoe_id INTEGER;"))
+except Exception as e:
+    print("Migration Error:", e)
+
 app = FastAPI(title="Run-it API")
 
 # CORS 설정 (Vue 프론트엔드 연결용)
