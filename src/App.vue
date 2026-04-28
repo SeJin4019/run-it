@@ -58,7 +58,7 @@ const courses = ref([])
 // 현재 유저의 기록 계산
 const myRecords = computed(() => {
   if (!currentUser.value) return []
-  return globalRecords.value.filter(r => r.userId === currentUser.value.id)
+  return globalRecords.value.filter(r => r.user_id === currentUser.value.id)
 })
 
 /**
@@ -230,7 +230,7 @@ const handleDeclineRequest = async (requestId) => {
 const startLiveFriendsPolling = () => {
   fetchLiveFriends()
   if (liveFriendsTimer.value) clearInterval(liveFriendsTimer.value)
-  liveFriendsTimer.value = setInterval(fetchLiveFriends, 10000) // 10초마다 갱신
+  liveFriendsTimer.value = setInterval(fetchLiveFriends, 5000) // 5초마다 갱신 (실시간성 강화)
 }
 
 /**
@@ -423,7 +423,7 @@ const handleSaveRecord = async (record) => {
     if (res.ok) {
       const newRecord = await res.json()
       globalRecords.value.push(newRecord)
-      // fetchUserRecords() // 필요 시 최신화
+      fetchUserShoes() // 신발 마일리지 즉시 갱신
     }
   } catch (e) {
     console.error('기록 저장 실패:', e)

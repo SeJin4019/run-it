@@ -82,19 +82,33 @@ const startRunning = () => {
 
   isRunning.value = true
   
-  // 1. 시간 측정용 타이머
+  // 1. 시간 측정용 타이머 및 실시간 케이던스 계산
   timer.value = setInterval(() => {
     elapsedTime.value++
-    // 케이던스 시뮬레이션 (달리는 중일 때만 150~180 사이 랜덤)
     if (isRunning.value) {
-      cadence.value = Math.floor(Math.random() * (180 - 160 + 1)) + 160
+      // 속도 기반 케이던스 역산 (평균 보폭 0.9m 가정)
+      // 현재 누적 거리(km)를 누적 시간(분)으로 나누어 분당 이동 거리(m/min) 계산
+      if (elapsedTime.value > 10 && distance.value > 0.01) {
+        const speedMetersPerMin = (distance.value * 1000) / (elapsedTime.value / 60)
+        // 속도(m/min) / 보폭(m/step) = 케이던스(spm)
+        let calcCadence = Math.round(speedMetersPerMin / 0.9)
+        // 비현실적인 값 필터링
+        if (calcCadence < 100) calcCadence = 0 // 걷거나 멈춘 경우
+        if (calcCadence > 220) calcCadence = 220 // 최대치 제한
+        
+        // 너무 튀지 않게 이전 케이던스와 보간(스무딩)
+        if (cadence.value === 0) cadence.value = calcCadence
+        else cadence.value = Math.round((cadence.value * 0.7) + (calcCadence * 0.3))
+      } else {
+        cadence.value = 0
+      }
     }
   }, 1000)
 
-  // 1.5 실시간 위치 공유 타이머 (10초마다 서버 전송)
+  // 1.5 실시간 위치 공유 타이머 (5초마다 서버 전송으로 실시간성 강화)
   liveUpdateTimer.value = setInterval(() => {
     sendLiveLocation(true)
-  }, 10000)
+  }, 5000)
 
   // 2. 실제 GPS 위치 추적 및 거리 계산
   if (navigator.geolocation) {
@@ -102,7 +116,11 @@ const startRunning = () => {
       (position) => {
         if (!isRunning.value) return // 일시정지 상태면 무시
 
-        const { latitude, longitude } = position.coords
+        const { latitude, longitude, accuracy } = position.coords
+
+        // GPS 정확도가 25m 이상으로 떨어지면 튀는 위치로 간주하고 무시 (건물 관통 방지)
+        if (accuracy && accuracy > 25) return
+
         const newPos = [latitude, longitude]
 
         if (currentPath.value.length > 0) {
@@ -135,8 +153,8 @@ const startRunning = () => {
       },
       {
         enableHighAccuracy: true, // 고정밀 GPS 사용
-        maximumAge: 5000, // 캐시된 위치 5초 허용 (iOS에서 빠른 응답을 위해 필수)
-        timeout: 15000 // 타임아웃 15초로 늘리기 (iOS는 최초 위치 잡는데 오래 걸릴 수 있음)
+        maximumAge: 1000, // 캐시된 위치는 1초만 허용하여 최신 위치 강제
+        timeout: 20000 // 타임아웃 20초로 넉넉하게
       }
     )
   }
@@ -276,6 +294,7 @@ const saveRecord = async () => {
       pace: pace.value,
       calories: calories.value,
       shoe_id: selectedShoe.value,
+      cadence: cadence.value,
       path: currentPath.value // 경로 데이터 포함
     }
     

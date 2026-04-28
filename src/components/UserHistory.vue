@@ -1,10 +1,15 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import ShoeManagement from './ShoeManagement.vue'
+import MapRoutePicker from './MapRoutePicker.vue'
 
 const props = defineProps({
   user: Object,
   records: Array,
+  shoes: {
+    type: Array,
+    default: () => []
+  },
   isMe: {
     type: Boolean,
     default: true
@@ -31,6 +36,20 @@ const stats = computed(() => {
 const formatDate = (dateStr) => {
   const date = new Date(dateStr)
   return `${date.getMonth() + 1}월 ${date.getDate()}일`
+}
+
+const selectedRecord = ref(null)
+const showDetailDialog = ref(false)
+
+const openRecordDetail = (record) => {
+  selectedRecord.value = record
+  showDetailDialog.value = true
+}
+
+const getShoeName = (shoeId) => {
+  if (!shoeId || !props.shoes) return '선택 안 함'
+  const shoe = props.shoes.find(s => s.id === shoeId)
+  return shoe ? `${shoe.brand} ${shoe.name}` : '알 수 없음'
 }
 </script>
 
@@ -111,19 +130,87 @@ const formatDate = (dateStr) => {
         :key="record.id"
         flat
         class="record-item rounded-xl border mb-3 pa-4"
+        @click="openRecordDetail(record)"
       >
         <div class="d-flex justify-space-between align-center">
           <div>
             <div class="text-caption text-grey mb-1">{{ formatDate(record.date) }} 러닝</div>
             <div class="text-h6 font-weight-black">{{ record.distance }} km</div>
           </div>
-          <div class="text-right">
-            <div class="text-body-2 font-weight-bold text-primary">{{ record.pace }}</div>
-            <div class="text-caption text-grey">{{ record.time }}</div>
+          <div class="text-right d-flex flex-column align-end">
+            <div class="text-body-2 font-weight-bold text-primary mb-1">{{ record.pace }} / km</div>
+            <VChip size="x-small" color="grey-lighten-3" class="text-grey-darken-2 px-2">상세보기 <VIcon icon="mdi-chevron-right" size="small" /></VChip>
           </div>
         </div>
       </VCard>
     </div>
+
+    <!-- 상세 기록 팝업 다이얼로그 -->
+    <VDialog v-model="showDetailDialog" max-width="500" v-if="selectedRecord">
+      <VCard class="rounded-xl overflow-hidden bg-grey-lighten-4">
+        <!-- 상단 헤더 영역 -->
+        <VCardItem class="bg-primary text-white pa-4 pb-6">
+          <div class="d-flex justify-space-between align-start mb-2">
+            <div>
+              <div class="text-caption opacity-80">{{ formatDate(selectedRecord.date) }} 러닝</div>
+              <div class="text-h4 font-weight-black">{{ selectedRecord.distance }} <span class="text-h6">km</span></div>
+            </div>
+            <VBtn icon="mdi-close" variant="text" color="white" @click="showDetailDialog = false" />
+          </div>
+        </VCardItem>
+
+        <!-- 지도 영역 -->
+        <div v-if="selectedRecord.path && selectedRecord.path.length > 0" class="map-container-wrapper bg-white">
+          <MapRoutePicker :model-value="selectedRecord.path" :read-only="true" />
+        </div>
+        <div v-else class="pa-8 text-center bg-white text-grey">
+          <VIcon icon="mdi-map-marker-off" size="48" class="mb-2 opacity-50" />
+          <div class="text-caption">경로 데이터가 없는 기록입니다.</div>
+        </div>
+
+        <!-- 세부 정보 영역 -->
+        <VCardText class="pa-4">
+          <VRow>
+            <VCol cols="6">
+              <VCard flat class="pa-3 rounded-lg text-center bg-white">
+                <div class="text-caption text-grey mb-1">시간</div>
+                <div class="text-h6 font-weight-bold">{{ selectedRecord.time }}</div>
+              </VCard>
+            </VCol>
+            <VCol cols="6">
+              <VCard flat class="pa-3 rounded-lg text-center bg-white">
+                <div class="text-caption text-grey mb-1">평균 페이스</div>
+                <div class="text-h6 font-weight-bold">{{ selectedRecord.pace }}</div>
+              </VCard>
+            </VCol>
+            <VCol cols="6">
+              <VCard flat class="pa-3 rounded-lg text-center bg-white">
+                <div class="text-caption text-grey mb-1">소모 칼로리</div>
+                <div class="text-h6 font-weight-bold">{{ selectedRecord.calories || 0 }} kcal</div>
+              </VCard>
+            </VCol>
+            <VCol cols="6">
+              <VCard flat class="pa-3 rounded-lg text-center bg-white">
+                <div class="text-caption text-grey mb-1">케이던스</div>
+                <div class="text-h6 font-weight-bold">{{ selectedRecord.cadence || 0 }} spm</div>
+              </VCard>
+            </VCol>
+            
+            <VCol cols="12" class="pt-0">
+              <VCard flat class="pa-3 rounded-lg bg-white d-flex align-center">
+                <VAvatar color="primary-lighten-4" size="36" class="mr-3">
+                  <VIcon icon="mdi-shoe-run" color="primary" />
+                </VAvatar>
+                <div>
+                  <div class="text-caption text-grey">함께한 러닝화</div>
+                  <div class="text-body-2 font-weight-bold">{{ getShoeName(selectedRecord.shoe_id) }}</div>
+                </div>
+              </VCard>
+            </VCol>
+          </VRow>
+        </VCardText>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 
@@ -133,10 +220,22 @@ const formatDate = (dateStr) => {
 }
 
 .record-item {
-  transition: transform 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.record-item:hover {
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
 }
 
 .record-item:active {
   transform: scale(0.98);
+}
+
+.map-container-wrapper {
+  height: 250px;
+  width: 100%;
+  position: relative;
+  z-index: 1;
 }
 </style>
