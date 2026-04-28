@@ -69,6 +69,11 @@ const initMap = () => {
       setTimeout(fitFullCourse, 300)
     }
   }
+
+  // 컴포넌트 렌더링/애니메이션 완료 후 지도 크기 재계산 (회색 타일 방지)
+  setTimeout(() => {
+    if (map) map.invalidateSize()
+  }, 300)
 }
 
 /**

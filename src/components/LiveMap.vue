@@ -40,6 +40,10 @@ const initMap = () => {
     html: '<div class="pulse"></div>' 
   })
   marker = L.marker(initialPos, { icon: userIcon }).addTo(map)
+  
+  setTimeout(() => {
+    if (map) map.invalidateSize()
+  }, 300)
 }
 
 const updateMap = () => {

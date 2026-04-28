@@ -226,7 +226,7 @@ const addComment = () => {
 }
 
 .detail-map-wrapper {
-  height: 320px;
+  height: 450px;
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid #e9ecef;

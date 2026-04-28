@@ -61,6 +61,16 @@ const myRecords = computed(() => {
   return globalRecords.value.filter(r => r.user_id === currentUser.value.id)
 })
 
+// 로그인 안된 상태에서 접근이 필요한 뷰 감시
+watch(currentView, (newView, oldView) => {
+  const protectedViews = ['community', 'history', 'record', 'create']
+  if (!isLoggedIn.value && protectedViews.includes(newView)) {
+    showAuthDialog.value = true
+    // 이전 뷰가 유효하면 복구, 아니면 discover로 이동
+    currentView.value = protectedViews.includes(oldView) ? 'discover' : (oldView || 'discover')
+  }
+})
+
 /**
  * 앱 초기화 시 백엔드에서 데이터를 불러옵니다.
  */
@@ -860,12 +870,12 @@ const goToCreate = () => {
         </VBtn>
       </div>
 
-      <VBtn value="community" v-if="isLoggedIn">
+      <VBtn value="community">
         <VIcon icon="mdi-account-group" />
         <span>커뮤니티</span>
       </VBtn>
 
-      <VBtn value="history" v-if="isLoggedIn">
+      <VBtn value="history">
         <VIcon icon="mdi-account" />
         <span>내 정보</span>
       </VBtn>
@@ -903,29 +913,20 @@ const goToCreate = () => {
 
 /* 글래스모피즘 네비게이션 바 */
 .glass-nav {
-  background: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
   backdrop-filter: blur(10px);
   border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
   box-shadow: none !important;
-  /* 모바일 가로 스크롤 지원 */
-  overflow-x: auto !important;
-  white-space: nowrap !important;
+  overflow: visible !important; /* FAB가 튀어나오게 설정 */
 }
 
-.v-bottom-navigation__content {
-  justify-content: flex-start !important;
-  padding: 0 16px;
-  min-width: max-content;
-}
-
-/* 스크롤바 숨기기 */
+/* 스크롤바 숨기기 (모바일 환경 등에서) */
 .glass-nav::-webkit-scrollbar {
   display: none;
 }
 .glass-nav {
   -ms-overflow-style: none;
   scrollbar-width: none;
-  overflow: visible !important; /* FAB가 튀어나오게 설정 */
 }
 
 /* 중앙 FAB 스타일 */

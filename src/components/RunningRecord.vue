@@ -232,6 +232,10 @@ const initMap = () => {
     html: '<div class="pulse"></div>' 
   })
   userMarker = L.marker(startPosition.value, { icon: userIcon }).addTo(map)
+  
+  setTimeout(() => {
+    if (map) map.invalidateSize()
+  }, 300)
 }
 
 const pauseRunning = () => {
@@ -372,15 +376,8 @@ onUnmounted(() => {
     <!-- Map or Manual Input section -->
     <div class="map-section rounded-xl overflow-hidden mb-4 border flex-grow-1" style="min-height: 250px; position: relative;">
       <template v-if="!isManualMode">
-        <!-- Placeholder -->
-        <div v-if="!map && elapsedTime === 0" class="d-flex align-center justify-center bg-grey-lighten-3" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;">
-          <div class="text-center text-grey">
-            <VIcon icon="mdi-map-marker-radius" size="48" class="mb-2" />
-            <p class="text-caption">시작 버튼을 누르면 지도가 표시됩니다.</p>
-          </div>
-        </div>
         <!-- Actual Leaflet Map -->
-        <div ref="mapContainer" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;" v-show="map || elapsedTime > 0"></div>
+        <div ref="mapContainer" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;"></div>
       </template>
       
       <template v-else>
@@ -471,58 +468,62 @@ onUnmounted(() => {
       </VRow>
     </div>
 
-    <div class="controls d-flex flex-column align-center justify-center shrink-0">
-      <!-- 1. 시작 전 상태 -->
-      <template v-if="!isRunning && elapsedTime === 0">
+    <div class="controls-fixed">
+      <div class="d-flex flex-column align-center justify-center">
+        <!-- 1. 시작 전 상태 -->
+        <template v-if="!isRunning && elapsedTime === 0">
+          <VBtn
+            color="primary"
+            size="x-large"
+            class="action-btn-large rounded-circle mb-2"
+            icon="mdi-play"
+            style="width: 80px; height: 80px; box-shadow: 0 10px 20px rgba(0,0,0,0.2) !important;"
+            @click="isManualMode ? saveRecord() : startRunning()"
+          />
+          <VBtn
+            variant="text"
+            :color="isManualMode ? 'primary' : 'grey'"
+            size="small"
+            class="font-weight-bold"
+            @click="isManualMode = !isManualMode"
+          >
+            <VIcon :icon="isManualMode ? 'mdi-run' : 'mdi-pencil-box-outline'" class="mr-1" />
+            {{ isManualMode ? '실시간 트래킹 모드' : '기록 직접 입력하기' }}
+          </VBtn>
+        </template>
+        
+        <!-- 2. 실행 중 상태 (커다란 빨간색 일시정지 버튼) -->
         <VBtn
-          color="primary"
+          v-else-if="isRunning"
+          color="error"
           size="x-large"
-          class="action-btn-large rounded-circle mb-4"
-          icon="mdi-play"
-          style="width: 80px; height: 80px;"
-          @click="isManualMode ? saveRecord() : startRunning()"
+          class="action-btn-large rounded-circle shadow-lg mb-2"
+          icon="mdi-pause"
+          style="box-shadow: 0 10px 20px rgba(231,76,60,0.4) !important;"
+          @click="pauseRunning"
         />
-        <VBtn
-          variant="text"
-          :color="isManualMode ? 'primary' : 'grey'"
-          size="small"
-          class="font-weight-bold"
-          @click="isManualMode = !isManualMode"
-        >
-          <VIcon :icon="isManualMode ? 'mdi-run' : 'mdi-pencil-box-outline'" class="mr-1" />
-          {{ isManualMode ? '실시간 트래킹 모드' : '기록 직접 입력하기' }}
-        </VBtn>
-      </template>
-      
-      <!-- 2. 실행 중 상태 (커다란 빨간색 일시정지 버튼) -->
-      <VBtn
-        v-else-if="isRunning"
-        color="error"
-        size="x-large"
-        class="action-btn-large rounded-circle shadow-lg"
-        icon="mdi-pause"
-        @click="pauseRunning"
-      />
 
-      <!-- 3. 일시정지 상태 (다시 시작 및 최종 종료) -->
-      <div v-else class="d-flex align-center gap-6">
-        <VBtn
-          color="success"
-          size="x-large"
-          class="action-btn rounded-circle"
-          icon="mdi-play"
-          @click="startRunning"
-        />
-        <VBtn
-          color="orange-darken-2"
-          size="x-large"
-          class="rounded-xl px-8"
-          style="height: 64px; min-width: 140px;"
-          prepend-icon="mdi-stop"
-          @click="saveRecord"
-        >
-          기록 종료
-        </VBtn>
+        <!-- 3. 일시정지 상태 (다시 시작 및 최종 종료) -->
+        <div v-else class="d-flex align-center gap-6 mb-2">
+          <VBtn
+            color="success"
+            size="x-large"
+            class="action-btn rounded-circle"
+            icon="mdi-play"
+            style="box-shadow: 0 10px 20px rgba(46,204,113,0.3) !important;"
+            @click="startRunning"
+          />
+          <VBtn
+            color="orange-darken-2"
+            size="x-large"
+            class="rounded-xl px-8"
+            style="height: 64px; min-width: 140px; box-shadow: 0 10px 20px rgba(245,124,0,0.3) !important;"
+            prepend-icon="mdi-stop"
+            @click="saveRecord"
+          >
+            기록 종료
+          </VBtn>
+        </div>
       </div>
     </div>
     
@@ -617,5 +618,25 @@ onUnmounted(() => {
   0% { box-shadow: 0 0 0 0 rgba(34, 139, 230, 0.7); }
   70% { box-shadow: 0 0 0 15px rgba(34, 139, 230, 0); }
   100% { box-shadow: 0 0 0 0 rgba(34, 139, 230, 0); }
+}
+
+.controls-fixed {
+  position: fixed;
+  bottom: 80px; /* 네비게이션 바 바로 위 */
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: linear-gradient(to top, rgba(255,255,255,1) 60%, rgba(255,255,255,0) 100%);
+  padding-top: 30px;
+  padding-bottom: 20px;
+  pointer-events: none; /* 배경 클릭 통과 */
+}
+.controls-fixed > div {
+  pointer-events: auto; /* 버튼들은 클릭 가능하게 */
+}
+
+/* 추가 정보(신발 등)가 하단 버튼에 가려지지 않도록 패딩 추가 */
+.additional-info {
+  margin-bottom: 150px !important; 
 }
 </style>
