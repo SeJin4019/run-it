@@ -6,6 +6,10 @@ import CourseFilters from './components/CourseFilters.vue'
 import CourseCreate from './components/CourseCreate.vue'
 import CourseDetail from './components/CourseDetail.vue'
 import CourseRecommend from './components/CourseRecommend.vue'
+import AuthDialog from './components/AuthDialog.vue'
+import RunningRecord from './components/RunningRecord.vue'
+import UserHistory from './components/UserHistory.vue'
+import CommunityView from './components/CommunityView.vue'
 
 /**
  * 🏃‍♂️ 런당근 메인 애플리케이션 컴포넌트
@@ -13,41 +17,91 @@ import CourseRecommend from './components/CourseRecommend.vue'
  * .skills 표준에 따라 Vuetify 3 기반으로 구성되었습니다.
  */
 
-const currentView = ref('discover') // 'discover', 'recommend', 'create', 'detail'
+const API_URL = import.meta.env.VITE_API_URL || `http://127.0.0.1:8000/api`
+
+const currentView = ref('discover') // 'discover', 'recommend', 'create', 'detail', 'record', 'history'
 const selectedDifficulty = ref('전체')
 const selectedCourse = ref(null)
 const searchQuery = ref('')
 
+// 인증 및 기록 상태
+const isLoggedIn = ref(false)
+const currentUser = ref(null)
+const showAuthDialog = ref(false)
+
+// 커뮤니티 데이터 상태
+const globalUsers = ref([])
+const globalRecords = ref([])
+const selectedFriend = ref(null)
+const showFriendProfile = ref(false)
+
 const courses = ref([])
 
-/**
- * 앱 초기화 시 로컬 스토리지에서 데이터를 불러옵니다.
- * TODO(Refactor, 2026-04-27): 대용량 데이터를 위해 추후 IndexedDB나 백엔드 연동 고려
- */
-onMounted(() => {
-  const savedCourses = localStorage.getItem('rundanggeun_courses')
-  if (savedCourses) {
-    try {
-      courses.value = JSON.parse(savedCourses)
-    } catch (e) {
-      console.error('데이터 로딩 실패:', e)
-    }
-  }
+// 현재 유저의 기록 계산
+const myRecords = computed(() => {
+  if (!currentUser.value) return []
+  return globalRecords.value.filter(r => r.userId === currentUser.value.id)
 })
 
 /**
- * 코스 데이터 변경 시마다 로컬 스토리지에 동기화합니다.
- * deep: true 설정을 통해 배열 내부 객체의 변경사항까지 감지합니다.
+ * 앱 초기화 시 백엔드에서 데이터를 불러옵니다.
  */
-watch(courses, (newCourses) => {
+onMounted(async () => {
+  // 코스 목록 불러오기
   try {
-    localStorage.setItem('rundanggeun_courses', JSON.stringify(newCourses))
-  } catch (e) {
-    if (e.name === 'QuotaExceededError') {
-      alert('저장 공간이 부족합니다! 사진 용량을 줄여주세요.')
+    const res = await fetch(`${API_URL}/courses`)
+    if (res.ok) {
+      courses.value = await res.json()
     }
+  } catch (e) {
+    console.error('코스 로딩 실패:', e)
   }
-}, { deep: true })
+
+  // 로그인 세션 확인 (일정 시간 후 만료 처리)
+  const savedToken = localStorage.getItem('rundanggeun_token')
+  const savedUser = localStorage.getItem('rundanggeun_user')
+  const savedExpiry = localStorage.getItem('rundanggeun_expiry')
+  
+  if (savedToken && savedUser && savedExpiry) {
+    const now = new Date().getTime()
+    if (now > parseInt(savedExpiry)) {
+      // 세션 만료됨
+      alert('로그인 세션이 만료되었습니다. 다시 로그인해주세요.')
+      handleLogout(false) // 만료로 인한 조용히 로그아웃
+    } else {
+      currentUser.value = JSON.parse(savedUser)
+      isLoggedIn.value = true
+      fetchUserRecords()
+    }
+  } else if (savedToken && savedUser) {
+     // 구버전(만료시간 없는) 데이터 호환성
+      currentUser.value = JSON.parse(savedUser)
+      isLoggedIn.value = true
+      fetchUserRecords()
+  }
+
+  // 전체 유저 목록 불러오기 (커뮤니티용)
+  try {
+    const res = await fetch(`${API_URL}/users`)
+    if (res.ok) {
+      globalUsers.value = await res.json()
+    }
+  } catch (e) {
+    console.error('유저 로딩 실패:', e)
+  }
+})
+
+const fetchUserRecords = async () => {
+  if (!currentUser.value) return
+  try {
+    const res = await fetch(`${API_URL}/records/${currentUser.value.id}`)
+    if (res.ok) {
+      globalRecords.value = await res.json()
+    }
+  } catch (e) {
+    console.error('기록 로딩 실패:', e)
+  }
+}
 
 /**
  * 필터링된 코스 목록 계산
@@ -63,15 +117,6 @@ const filteredCourses = computed(() => {
   })
 })
 
-/**
- * 새로운 코스 등록 처리
- * 코스 배열의 처음에 추가하여 최신순으로 노출합니다.
- */
-const handleCreateCourse = (newCourse) => {
-  courses.value.unshift({ ...newCourse, comments: [] })
-  currentView.value = 'discover'
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
 
 /**
  * 코스 상세 페이지 오픈
@@ -146,14 +191,155 @@ const handleFindMe = () => {
     }
   })
 }
+
+/**
+ * 로그인 처리
+ */
+const handleLogin = (authResponse) => {
+  currentUser.value = authResponse.user
+  isLoggedIn.value = true
+  
+  // 2시간 후 만료로 설정 (밀리초 단위)
+  const expiresIn = 2 * 60 * 60 * 1000
+  const expiryTime = new Date().getTime() + expiresIn
+  
+  localStorage.setItem('rundanggeun_token', authResponse.access_token)
+  localStorage.setItem('rundanggeun_user', JSON.stringify(authResponse.user))
+  localStorage.setItem('rundanggeun_expiry', expiryTime.toString())
+  
+  fetchUserRecords()
+}
+
+/**
+ * 로그아웃 처리
+ */
+const handleLogout = (requireConfirm = true) => {
+  if (requireConfirm && !confirm('로그아웃 하시겠습니까?')) {
+    return
+  }
+  isLoggedIn.value = false
+  currentUser.value = null
+  localStorage.removeItem('rundanggeun_token')
+  localStorage.removeItem('rundanggeun_user')
+  localStorage.removeItem('rundanggeun_expiry')
+  currentView.value = 'discover'
+}
+
+/**
+ * 코스 등록
+ */
+const handleCreateCourse = async (courseData) => {
+  if (!isLoggedIn.value) return
+
+  try {
+    const res = await fetch(`${API_URL}/courses?user_id=${currentUser.value.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(courseData)
+    })
+    
+    if (res.ok) {
+      const newCourse = await res.json()
+      courses.value.unshift(newCourse)
+      currentView.value = 'discover'
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  } catch (e) {
+    console.error('코스 등록 실패:', e)
+  }
+}
+
+/**
+ * 코스 삭제 핸들러
+ */
+const handleDeleteCourse = async (courseId) => {
+  if (!isLoggedIn.value) return
+
+  if (!confirm('정말로 이 코스를 삭제하시겠습니까?')) return
+
+  try {
+    const res = await fetch(`${API_URL}/courses/${courseId}?user_id=${currentUser.value.id}`, {
+      method: 'DELETE'
+    })
+    
+    if (res.ok) {
+      courses.value = courses.value.filter(c => c.id !== courseId)
+      if (currentView.value === 'detail') {
+        currentView.value = 'discover'
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    }
+  } catch (e) {
+    console.error('코스 삭제 실패:', e)
+  }
+}
+
+/**
+ * 러닝 기록 저장
+ */
+const handleSaveRecord = async (record) => {
+  if (!isLoggedIn.value) return
+
+  try {
+    const res = await fetch(`${API_URL}/records?user_id=${currentUser.value.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record)
+    })
+    
+    if (res.ok) {
+      const newRecord = await res.json()
+      globalRecords.value.push(newRecord)
+      currentView.value = 'history'
+    }
+  } catch (e) {
+    console.error('기록 저장 실패:', e)
+  }
+}
+const goToRecord = () => {
+  if (!isLoggedIn.value) {
+    showAuthDialog.value = true
+    return
+  }
+  currentView.value = 'record'
+}
+
+const goToCreate = () => {
+  if (!isLoggedIn.value) {
+    showAuthDialog.value = true
+    return
+  }
+  currentView.value = 'create'
+}
 </script>
 
 <template>
   <VApp>
     <!-- 상단 헤더 영역 -->
     <VAppBar flat border height="56">
-      <VContainer class="d-flex align-center justify-center">
+      <VContainer class="d-flex align-center">
+        <div style="width: 80px"></div> <!-- Spacer for symmetry -->
         <VAppBarTitle class="text-center font-weight-black text-primary">런릿 (Run-it)</VAppBarTitle>
+        <div style="width: 80px" class="text-right">
+          <VBtn
+            v-if="!isLoggedIn"
+            variant="text"
+            color="primary"
+            class="font-weight-bold"
+            @click="showAuthDialog = true"
+          >
+            로그인
+          </VBtn>
+          <VAvatar
+            v-else
+            color="primary"
+            size="32"
+            class="cursor-pointer"
+            @click="currentView = 'history'"
+          >
+            <span class="text-caption">{{ currentUser.name[0] }}</span>
+          </VAvatar>
+        </div>
       </VContainer>
     </VAppBar>
 
@@ -175,10 +361,12 @@ const handleFindMe = () => {
               <CourseCard 
                 v-for="course in filteredCourses" 
                 :key="course.id" 
-                :course="course" 
+                :course="course"
+                :current-user="currentUser"
                 @click="openDetail(course)"
                 @filter-location="handleFilterLocation"
                 @toggle-like="handleToggleLike"
+                @delete-course="handleDeleteCourse"
               />
             </div>
 
@@ -211,14 +399,70 @@ const handleFindMe = () => {
         <div v-else-if="currentView === 'detail'">
           <CourseDetail 
             :course="selectedCourse" 
+            :current-user="currentUser"
             @back="currentView = 'discover'"
             @update-comments="handleUpdateComments"
             @filter-location="handleFilterLocation"
             @toggle-like="handleToggleLike"
+            @delete-course="handleDeleteCourse"
+          />
+        </div>
+
+        <!-- 러닝 기록 뷰 -->
+        <div v-else-if="currentView === 'record'">
+          <RunningRecord 
+            @save-record="handleSaveRecord"
+            @back="currentView = 'history'"
+          />
+        </div>
+
+        <!-- 커뮤니티 뷰 -->
+        <div v-else-if="currentView === 'community'">
+          <CommunityView 
+            :current-user="currentUser"
+            :global-users="globalUsers"
+            :global-records="globalRecords"
+            @open-profile="openFriendProfile"
+          />
+        </div>
+
+        <!-- 내 활동 뷰 -->
+        <div v-else-if="currentView === 'history'">
+          <UserHistory 
+            :user="currentUser"
+            :records="myRecords"
+            :is-me="true"
+            @logout="handleLogout"
           />
         </div>
       </VContainer>
     </VMain>
+
+    <!-- 인증 다이얼로그 -->
+    <AuthDialog 
+      v-model="showAuthDialog" 
+      @login="handleLogin" 
+    />
+
+    <!-- 친구 프로필 다이얼로그 -->
+    <VDialog v-model="showFriendProfile" max-width="500" transition="dialog-bottom-transition">
+      <VCard class="rounded-xl" v-if="selectedFriend">
+        <VToolbar color="transparent" flat class="pr-2">
+          <VSpacer />
+          <VBtn icon="mdi-close" variant="text" @click="showFriendProfile = false" />
+        </VToolbar>
+        <VCardText class="pt-0 pb-6">
+          <UserHistory 
+            :user="selectedFriend"
+            :records="globalRecords.filter(r => r.userId === selectedFriend.id)"
+            :is-me="false"
+            :is-friend="currentUser?.friends?.includes(selectedFriend.id)"
+            @add-friend="handleAddFriend"
+            @remove-friend="handleRemoveFriend"
+          />
+        </VCardText>
+      </VCard>
+    </VDialog>
 
     <!-- 하단 네비게이션 탭 (Glassmorphism 적용) -->
     <VBottomNavigation
@@ -237,9 +481,24 @@ const handleFindMe = () => {
         <span>추천 코스</span>
       </VBtn>
 
-      <VBtn value="create">
+      <VBtn @click="goToRecord" :value="currentView === 'record' ? 'record' : ''">
+        <VIcon icon="mdi-run" />
+        <span>기록</span>
+      </VBtn>
+
+      <VBtn @click="goToCreate" :value="currentView === 'create' ? 'create' : ''">
         <VIcon icon="mdi-plus-circle" />
         <span>코스 등록</span>
+      </VBtn>
+
+      <VBtn value="community" v-if="isLoggedIn">
+        <VIcon icon="mdi-account-group" />
+        <span>커뮤니티</span>
+      </VBtn>
+
+      <VBtn value="history" v-if="isLoggedIn">
+        <VIcon icon="mdi-account" />
+        <span>내 정보</span>
       </VBtn>
     </VBottomNavigation>
 

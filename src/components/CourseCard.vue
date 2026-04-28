@@ -1,5 +1,6 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+
 import MapRoutePicker from './MapRoutePicker.vue'
 
 /**
@@ -12,15 +13,33 @@ const props = defineProps({
   course: {
     type: Object,
     required: true
+  },
+  currentUser: {
+    type: Object,
+    default: null
   }
 })
 
-/**
- * 좋아요 토글 처리 (부모 컴포넌트에 이벤트 전달)
- */
+const emit = defineEmits(['toggle-like', 'filter-location', 'delete-course'])
+
+// 로그인한 유저이 작성자이거나, 작성자 정보가 없는 (=이전 데이터) 코스인 경우 삭제 허용
+const isAuthor = computed(() => {
+  if (!props.currentUser) return false
+  if (!props.course.authorId) return true // 기존 코스 (작성자 정보 없음) - 로그인 사용자라면 삭제 가능
+  return props.course.authorId === props.currentUser.id
+})
+
+const authorName = computed(() => props.course.authorName || '익명')
+const isMyCourse = computed(() => props.currentUser && props.course.authorId === props.currentUser.id)
+
 const toggleLike = (e) => {
-  e.stopPropagation() // 상세 페이지 이동 방지
+  e.stopPropagation()
   emit('toggle-like', props.course.id)
+}
+
+const deleteCourse = (e) => {
+  e.stopPropagation()
+  emit('delete-course', props.course.id)
 }
 </script>
 
@@ -71,6 +90,14 @@ const toggleLike = (e) => {
         </div>
       </div>
 
+      <!-- 작성자 정보 -->
+      <div class="d-flex align-center mb-3">
+        <VAvatar color="primary" size="20" class="mr-2">
+          <span style="font-size: 10px; color: white; font-weight: bold;">{{ authorName[0] }}</span>
+        </VAvatar>
+        <span class="text-caption text-grey-darken-1">{{ authorName }}</span>
+        <span v-if="isMyCourse" class="ml-1 text-caption text-primary font-weight-bold">(나)</span>
+      </div>
       <!-- 거리/고도 요약 정보 -->
       <div class="d-flex align-center py-2 px-3 bg-grey-lighten-5 rounded-pill mb-4">
         <div class="text-caption">
@@ -102,7 +129,17 @@ const toggleLike = (e) => {
             {{ course.comments?.length || 0 }}
           </VBtn>
         </div>
-        <span class="text-caption text-grey">방금 전</span>
+        <div class="d-flex align-center gap-2">
+          <VBtn 
+            v-if="isAuthor"
+            variant="text"
+            size="small"
+            color="error"
+            icon="mdi-trash-can-outline"
+            @click="deleteCourse"
+          />
+          <span class="text-caption text-grey">방금 전</span>
+        </div>
       </div>
     </VCardText>
   </VCard>

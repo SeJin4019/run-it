@@ -40,3 +40,24 @@ Thumbs.db
 # Test related
 coverage/
 test-results/
+
+# Python / FastAPI Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+env/
+.venv/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+backend/runit.db
+
+# Environments
+backend/.env
+
+# AI Assistant
+.skills/

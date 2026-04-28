@@ -1,5 +1,6 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+
 import MapRoutePicker from './MapRoutePicker.vue'
 
 /**
@@ -44,24 +45,86 @@ const CITY_DATA = {
 
 const selectedCity = ref('')
 const selectedDistrict = ref('')
+const selectedDong = ref('')
 
 /**
- * 시/도 선택 변경 시 시/군/구 초기화
+ * 구/군 → 동 데이터 (대표 동만 포함)
+ */
+const DISTRICT_DONG_DATA = {
+  // 서울
+  '강남구': ['개포동', '논현동', '대치동', '도곡동', '삼성동', '세곡동', '수서동', '압구정동', '역삼동', '일원동', '자곡동', '청담동'],
+  '서초구': ['내곡동', '반포동', '방배동', '서초동', '신원동', '양재동', '우면동', '잠원동'],
+  '마포구': ['공덕동', '대흥동', '망원동', '서교동', '성산동', '신수동', '아현동', '연남동', '용강동', '합정동', '홍익동'],
+  '송파구': ['가락동', '거여동', '문정동', '방이동', '석촌동', '송파동', '오금동', '잠실동', '장지동', '풍납동'],
+  '강서구': ['가양동', '개화동', '공항동', '내발산동', '마곡동', '방화동', '화곡동'],
+  '강동구': ['강일동', '고덕동', '길동', '둔촌동', '명일동', '상일동', '성내동', '암사동', '천호동'],
+  '영등포구': ['당산동', '대림동', '도림동', '문래동', '신길동', '여의도동', '영등포동', '양평동'],
+  '은평구': ['갈현동', '녹번동', '대조동', '불광동', '수색동', '신사동', '역촌동', '응암동', '진관동'],
+  '노원구': ['공릉동', '월계동', '중계동', '하계동', '상계동'],
+  '성동구': ['금호동', '도선동', '마장동', '사근동', '성수동', '송정동', '옥수동', '왕십리동', '응봉동'],
+  '관악구': ['남현동', '봉천동', '신림동'],
+  '동작구': ['노량진동', '대방동', '동작동', '사당동', '상도동', '신대방동'],
+  '중구': ['광희동', '남대문로', '명동', '무교동', '신당동', '을지로', '정동', '충무로', '황학동', '회현동'],
+  '종로구': ['가회동', '계동', '궁정동', '내수동', '누상동', '삼청동', '서촌', '숭인동', '이화동', '인사동', '창신동', '통의동', '혜화동'],
+  '용산구': ['갈월동', '동자동', '문배동', '보광동', '서계동', '이촌동', '이태원동', '청암동', '한강로동', '한남동'],
+  '성북구': ['길음동', '돈암동', '동소문동', '보문동', '삼선동', '성북동', '안암동', '장위동', '정릉동', '종암동'],
+  '도봉구': ['도봉동', '방학동', '쌍문동', '창동'],
+  '강북구': ['미아동', '번동', '수유동', '우이동'],
+  '구로구': ['개봉동', '고척동', '구로동', '신도림동', '오류동', '온수동', '항동'],
+  '금천구': ['가산동', '독산동', '시흥동'],
+  '광진구': ['광장동', '구의동', '군자동', '능동', '자양동', '중곡동', '화양동'],
+  '중랑구': ['면목동', '망우동', '묵동', '상봉동', '신내동', '중화동'],
+  '동대문구': ['답십리동', '신설동', '이문동', '장안동', '전농동', '제기동', '청량리동', '휘경동'],
+  '서대문구': ['남가좌동', '냉천동', '대신동', '대현동', '북가좌동', '북아현동', '연희동', '창천동', '천연동', '충현동', '홍제동', '홍은동'],
+  '양천구': ['목동', '신월동', '신정동'],
+  // 경기
+  '수원시': ['인계동', '팔달동', '권선동', '연무동', '우만동', '지동', '장안동', '정자동', '조원동', '천천동'],
+  '성남시': ['분당동', '수내동', '야탑동', '이매동', '정자동', '판교동'],
+  '고양시': ['일산동', '백석동', '주엽동', '덕이동', '화정동', '행신동'],
+  '용인시': ['기흥동', '수지동', '처인동'],
+  // 부산
+  '해운대구': ['반여동', '반송동', '우동', '우2동', '좌동', '중동', '청사포동'],
+  '부산진구': ['개금동', '당감동', '범천동', '부전동', '양정동', '전포동'],
+  // 인천
+  '연수구': ['동춘동', '선학동', '송도동', '연수동', '청학동'],
+  // 대전
+  '유성구': ['관저동', '노은동', '봉명동', '지족동', '하기동'],
+  // 광주
+  '북구': ['각화동', '문흥동', '삼각동', '신안동', '용봉동', '운암동', '일곡동'],
+  // 대구
+  '수성구': ['고산동', '대흥동', '만촌동', '범어동', '수성동', '시지동'],
+}
+
+/**
+ * 시/도 선택 변경 시 시/군/구 및 동 초기화
  */
 const onCityChange = () => {
   selectedDistrict.value = ''
+  selectedDong.value = ''
   updateLocation()
 }
+
+/**
+ * 시/군/구 선택 변경 시 동 초기화
+ */
+const onDistrictChange = () => {
+  selectedDong.value = ''
+  updateLocation()
+}
+
+/**
+ * 현재 구에 해당하는 동 목록 (없으면 직접 입력)
+ */
+const availableDongs = computed(() => {
+  return DISTRICT_DONG_DATA[selectedDistrict.value] || []
+})
 
 /**
  * 최종 위치 문자열 업데이트
  */
 const updateLocation = () => {
-  if (selectedCity.value && selectedDistrict.value) {
-    newCourse.value.location = `${selectedCity.value} ${selectedDistrict.value}`
-  } else {
-    newCourse.value.location = ''
-  }
+  const parts = [selectedCity.value, selectedDistrict.value, selectedDong.value].filter(Boolean)
+  newCourse.value.location = parts.join(' ')
 }
 
 /**
@@ -91,18 +154,12 @@ const handleSubmit = async () => {
 
   loading.value = true
   
-  // 시뮬레이션된 로딩 시간
-  await new Promise(resolve => setTimeout(resolve, 500))
-
   emit('create', {
     ...newCourse.value,
-    id: Date.now(),
     distance: parseFloat(newCourse.value.distance),
     elevation: parseInt(newCourse.value.elevation) || 0
   })
   
-  // 폼 초기화
-  resetForm()
   loading.value = false
 }
 
@@ -122,6 +179,7 @@ const resetForm = () => {
   selectedFile.value = null
   selectedCity.value = ''
   selectedDistrict.value = ''
+  selectedDong.value = ''
 }
 </script>
 
@@ -189,9 +247,37 @@ const resetForm = () => {
             density="comfortable"
             color="primary"
             :disabled="!selectedCity"
-            @update:model-value="updateLocation"
+            @update:model-value="onDistrictChange"
             required
           />
+        </VCol>
+
+        <VCol cols="12" sm="6">
+          <template v-if="availableDongs.length > 0">
+            <VSelect
+              v-model="selectedDong"
+              :items="availableDongs"
+              label="동 선택 (선택)"
+              variant="outlined"
+              density="comfortable"
+              color="primary"
+              :disabled="!selectedDistrict"
+              clearable
+              @update:model-value="updateLocation"
+            />
+          </template>
+          <template v-else>
+            <VTextField
+              v-model="selectedDong"
+              label="동 직접 입력 (선택)"
+              placeholder="예: 서교동, 역삼동"
+              variant="outlined"
+              density="comfortable"
+              color="primary"
+              :disabled="!selectedDistrict"
+              @input="updateLocation"
+            />
+          </template>
         </VCol>
 
         <VCol cols="12" sm="6">

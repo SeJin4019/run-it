@@ -1,5 +1,6 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+
 import MapRoutePicker from './MapRoutePicker.vue'
 
 /**
@@ -12,10 +13,23 @@ const props = defineProps({
   course: {
     type: Object,
     required: true
+  },
+  currentUser: {
+    type: Object,
+    default: null
   }
 })
 
-const emit = defineEmits(['back', 'update-comments', 'toggle-like', 'filter-location'])
+const emit = defineEmits(['back', 'update-comments', 'toggle-like', 'filter-location', 'delete-course'])
+
+const isAuthor = computed(() => {
+  if (!props.currentUser) return false
+  if (!props.course.authorId) return true // 기존 코스 (authorId 없음) - 로그인 사용자 삭제 가능
+  return props.course.authorId === props.currentUser.id
+})
+
+const authorName = computed(() => props.course.authorName || '익명')
+const isMyCourse = computed(() => props.currentUser && props.course.authorId === props.currentUser.id)
 
 const newComment = ref('')
 const comments = ref(props.course.comments || [])
@@ -53,6 +67,13 @@ const addComment = () => {
         :color="course.isLiked ? 'error' : 'grey-darken-1'" 
         @click="$emit('toggle-like', course.id)"
       />
+      <VBtn
+        v-if="isAuthor"
+        icon="mdi-trash-can-outline"
+        color="error"
+        variant="text"
+        @click="emit('delete-course', course.id)"
+      />
     </VToolbar>
 
     <div class="content-body">
@@ -61,7 +82,7 @@ const addComment = () => {
 
       <VContainer class="pa-6">
         <!-- 기본 정보 섹션 -->
-        <div class="d-flex align-center justify-space-between mb-6">
+        <div class="d-flex align-center justify-space-between mb-4">
           <div 
             class="d-flex align-center text-grey location-link" 
             @click="$emit('filter-location', course.location)"
@@ -77,6 +98,20 @@ const addComment = () => {
           >
             {{ course.difficulty }}
           </VChip>
+        </div>
+
+        <!-- 작성자 정보 -->
+        <div class="d-flex align-center mb-6 pa-3 rounded-xl bg-grey-lighten-5">
+          <VAvatar color="primary" size="32" class="mr-3">
+            <span class="text-caption font-weight-bold" style="color: white;">{{ authorName[0] }}</span>
+          </VAvatar>
+          <div>
+            <div class="text-caption text-grey">코스 등록자</div>
+            <div class="text-body-2 font-weight-bold">
+              {{ authorName }}
+              <VChip v-if="isMyCourse" size="x-small" color="primary" variant="tonal" class="ml-1">나의 코스</VChip>
+            </div>
+          </div>
         </div>
 
         <!-- 핵심 스탯 그리드 -->
