@@ -35,9 +35,18 @@ const globalUsers = ref([])
 const globalRecords = ref([])
 const userShoes = ref([])
 const liveFriends = ref([]) // 실시간 친구 위치
+const previousLiveFriends = ref([]) // 이전 상태 저장용
 const selectedFriend = ref(null)
 const liveFriendsTimer = ref(null)
 const showFriendProfile = ref(false)
+
+// 알림용 스낵바 상태
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'primary',
+  friend: null
+})
 
 const courses = ref([])
 
@@ -126,11 +135,37 @@ const fetchLiveFriends = async () => {
   try {
     const res = await fetch(`${API_URL}/live/friends?user_id=${currentUser.value.id}`)
     if (res.ok) {
-      liveFriends.value = await res.json()
+      const newData = await res.json()
+      
+      // 새로 러닝을 시작한 친구 확인 (이전 데이터에는 없는데 현재 데이터에 있는 친구)
+      newData.forEach(friend => {
+        const wasRunning = previousLiveFriends.value.some(p => p.user_id === friend.user_id)
+        if (!wasRunning) {
+          showRunningNotification(friend)
+        }
+      })
+      
+      liveFriends.value = newData
+      previousLiveFriends.value = newData
     }
   } catch (e) {
     console.error('실시간 친구 위치 로딩 실패:', e)
   }
+}
+
+const showRunningNotification = (friend) => {
+  snackbar.value = {
+    show: true,
+    text: `🏃‍♂️ ${friend.name}님이 지금 러닝을 시작했습니다!`,
+    color: 'error',
+    friend: friend
+  }
+}
+
+const openFriendMap = (friend) => {
+  if (!friend) return
+  const url = `https://www.google.com/maps/search/?api=1&query=${friend.latitude},${friend.longitude}`
+  window.open(url, '_blank')
 }
 
 const startLiveFriendsPolling = () => {
@@ -584,6 +619,31 @@ const goToCreate = () => {
       </VCard>
     </VDialog>
 
+    <!-- 친구 러닝 시작 알림 스낵바 -->
+    <VSnackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      location="top"
+      elevation="24"
+      rounded="pill"
+      class="mt-12"
+      :timeout="5000"
+    >
+      <div class="d-flex align-center">
+        <VIcon icon="mdi-fire" class="mr-2" color="white" />
+        {{ snackbar.text }}
+      </div>
+      <template v-slot:actions>
+        <VBtn
+          variant="text"
+          class="font-weight-bold"
+          @click="openFriendMap(snackbar.friend)"
+        >
+          위치 확인
+        </VBtn>
+      </template>
+    </VSnackbar>
+
     <!-- 하단 네비게이션 탭 (Glassmorphism + Centered FAB 적용) -->
     <VBottomNavigation
       v-model="currentView"
@@ -693,19 +753,20 @@ const goToCreate = () => {
 
 .main-record-fab {
   position: absolute !important;
-  bottom: 20px !important;
-  width: 60px !important;
-  height: 60px !important;
-  min-width: 60px !important;
-  background: linear-gradient(135deg, #ff8a3d 0%, #ff6b6b 100%) !important;
+  bottom: 12px !important; /* 조금 더 아래로 */
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px !important;
+  background: linear-gradient(135deg, #ff8a3d 0%, #ff7e5f 100%) !important; /* 부드러운 그라데이션 */
   border-radius: 50% !important;
-  box-shadow: 0 8px 20px rgba(255, 138, 61, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(255, 138, 61, 0.3) !important; /* 부드러운 그림자 */
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
   padding: 0 !important;
 }
 
 .main-record-fab:hover {
-  transform: translateY(-5px) scale(1.05);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 6px 15px rgba(255, 138, 61, 0.4) !important;
 }
 
 .fab-label {
