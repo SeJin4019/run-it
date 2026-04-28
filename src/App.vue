@@ -625,6 +625,16 @@ const goToCreate = () => {
               </VBtn>
             </VContainer>
           </div>
+
+          <!-- 코스 등록 플로팅 액션 버튼 (FAB) -->
+          <VBtn
+            class="position-fixed bg-primary"
+            style="bottom: 80px; right: 16px; z-index: 100;"
+            icon="mdi-pencil-plus"
+            size="x-large"
+            elevation="8"
+            @click="goToCreate"
+          />
         </div>
 
         <!-- 코스 등록 뷰 -->

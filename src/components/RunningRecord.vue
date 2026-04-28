@@ -64,11 +64,17 @@ const startRunning = () => {
         startPosition.value = [pos.coords.latitude, pos.coords.longitude]
         currentPath.value = [startPosition.value]
         initMap()
-      }, () => {
+      }, (error) => {
+        console.error('초기 위치 획득 실패:', error)
+        if (error.code === 1) alert('GPS 권한이 거부되었습니다. 기기 설정에서 Safari(또는 사용 중인 브라우저)의 위치 권한을 허용해주세요.')
+        else if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+          alert('아이폰 등 스마트폰 환경에서는 HTTPS 접속 시에만 GPS가 동작합니다.')
+        }
         currentPath.value = [startPosition.value]
         initMap()
-      })
+      }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 })
     } else {
+      alert('이 기기는 GPS를 지원하지 않습니다.')
       currentPath.value = [startPosition.value]
       initMap()
     }
@@ -120,11 +126,17 @@ const startRunning = () => {
       },
       (error) => {
         console.error('GPS 추적 에러:', error)
+        if (error.code === 1) { // PERMISSION_DENIED
+          alert('GPS 권한이 차단되었습니다. 아이폰 [설정] - [개인정보 보호] - [위치 서비스]에서 브라우저의 위치 권한을 허용해주세요.')
+          pauseRunning()
+        } else if (error.code === 3) { // TIMEOUT
+          console.warn('GPS 신호가 약해 위치를 가져오는데 시간이 걸리고 있습니다.')
+        }
       },
       {
         enableHighAccuracy: true, // 고정밀 GPS 사용
-        maximumAge: 0,
-        timeout: 5000
+        maximumAge: 5000, // 캐시된 위치 5초 허용 (iOS에서 빠른 응답을 위해 필수)
+        timeout: 15000 // 타임아웃 15초로 늘리기 (iOS는 최초 위치 잡는데 오래 걸릴 수 있음)
       }
     )
   }
@@ -314,7 +326,9 @@ onMounted(() => {
     navigator.geolocation.getCurrentPosition((pos) => {
       startPosition.value = [pos.coords.latitude, pos.coords.longitude]
       if (!map) initMap()
-    })
+    }, (error) => {
+      console.warn('마운트 시 초기 위치 획득 실패:', error)
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 })
   }
 })
 
