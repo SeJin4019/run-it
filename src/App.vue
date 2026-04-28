@@ -368,6 +368,46 @@ const handleAddFriendByEmail = async (email) => {
   }
 }
 
+const handleAddFriend = async (friendId) => {
+  if (!currentUser.value) return
+  try {
+    // 이미 친구 추가 로직이 있으므로 이메일을 찾아서 호출하거나 별도 ID 기반 API 사용
+    const friend = globalUsers.value.find(u => u.id === friendId)
+    if (friend) {
+      await handleAddFriendByEmail(friend.email)
+    }
+  } catch (e) {
+    console.error('친구 추가 실패:', e)
+  }
+}
+
+const handleRemoveFriend = async (friendId) => {
+  if (!currentUser.value) return
+  if (!confirm('정말 친구를 삭제하시겠습니까?')) return
+  
+  try {
+    const res = await fetch(`${API_URL}/users/remove-friend?user_id=${currentUser.value.id}&friend_id=${friendId}`, {
+      method: 'POST'
+    })
+    if (res.ok) {
+      const data = await res.json()
+      alert(data.message)
+      // 사용자 정보 갱신
+      const userRes = await fetch(`${API_URL}/users`)
+      if (userRes.ok) {
+        globalUsers.value = await userRes.json()
+        const updatedMe = globalUsers.value.find(u => u.id === currentUser.value.id)
+        if (updatedMe) {
+          currentUser.value = updatedMe
+          localStorage.setItem('rundanggeun_user', JSON.stringify(updatedMe))
+        }
+      }
+    }
+  } catch (e) {
+    console.error('친구 삭제 실패:', e)
+  }
+}
+
 const goToRecord = () => {
   if (!isLoggedIn.value) {
     showAuthDialog.value = true
@@ -544,36 +584,38 @@ const goToCreate = () => {
       </VCard>
     </VDialog>
 
-    <!-- 하단 네비게이션 탭 (Glassmorphism 적용) -->
+    <!-- 하단 네비게이션 탭 (Glassmorphism + Centered FAB 적용) -->
     <VBottomNavigation
       v-model="currentView"
-      grow
       class="glass-nav"
       mandatory
+      grow
     >
       <VBtn value="discover">
         <VIcon icon="mdi-home" />
         <span>홈</span>
       </VBtn>
 
-      <VBtn value="recommend">
-        <VIcon icon="mdi-star" />
-        <span>추천 코스</span>
-      </VBtn>
-
-      <VBtn @click="goToRecord" :value="currentView === 'record' ? 'record' : ''">
-        <VIcon icon="mdi-run" />
-        <span>기록</span>
-      </VBtn>
-
-      <VBtn @click="goToCreate" :value="currentView === 'create' ? 'create' : ''">
-        <VIcon icon="mdi-plus-circle" />
-        <span>코스 등록</span>
-      </VBtn>
-
       <VBtn value="community" v-if="isLoggedIn">
         <VIcon icon="mdi-account-group" />
         <span>커뮤니티</span>
+      </VBtn>
+
+      <!-- 중앙 기록 버튼 (FAB) -->
+      <div class="fab-container">
+        <VBtn
+          @click="goToRecord"
+          :class="{ 'fab-active': currentView === 'record' }"
+          class="main-record-fab"
+        >
+          <VIcon icon="mdi-run" size="32" color="white" />
+          <span class="fab-label">기록</span>
+        </VBtn>
+      </div>
+
+      <VBtn value="recommend">
+        <VIcon icon="mdi-star" />
+        <span>추천</span>
       </VBtn>
 
       <VBtn value="history" v-if="isLoggedIn">
@@ -636,6 +678,54 @@ const goToCreate = () => {
 .glass-nav {
   -ms-overflow-style: none;
   scrollbar-width: none;
+  overflow: visible !important; /* FAB가 튀어나오게 설정 */
+}
+
+/* 중앙 FAB 스타일 */
+.fab-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 70px;
+  z-index: 10;
+}
+
+.main-record-fab {
+  position: absolute !important;
+  bottom: 20px !important;
+  width: 60px !important;
+  height: 60px !important;
+  min-width: 60px !important;
+  background: linear-gradient(135deg, #ff8a3d 0%, #ff6b6b 100%) !important;
+  border-radius: 50% !important;
+  box-shadow: 0 8px 20px rgba(255, 138, 61, 0.4) !important;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+  padding: 0 !important;
+}
+
+.main-record-fab:hover {
+  transform: translateY(-5px) scale(1.05);
+}
+
+.fab-label {
+  position: absolute;
+  bottom: -22px;
+  font-size: 10px;
+  font-weight: bold;
+  color: #ff8a3d;
+  white-space: nowrap;
+}
+
+.fab-active {
+  transform: translateY(-8px) scale(1.1);
+  box-shadow: 0 15px 30px rgba(255, 138, 61, 0.6) !important;
+}
+
+::v-deep(.v-bottom-navigation__content) {
+  justify-content: space-around !important;
+  padding: 0 8px;
+  min-width: 100%;
 }
 
 .animate-fade-in {

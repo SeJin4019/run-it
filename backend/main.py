@@ -104,17 +104,33 @@ def add_friend(user_id: int, friend_email: str, db: Session = Depends(get_db)):
     
     return {"message": f"{friend.name}님을 친구로 추가했습니다.", "friend": friend}
 
+@app.post("/api/users/remove-friend")
+def remove_friend(user_id: int, friend_id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+    
+    current_friends = list(user.friends) if user.friends else []
+    if friend_id not in current_friends:
+        raise HTTPException(status_code=400, detail="친구 목록에 없는 사용자입니다.")
+    
+    current_friends.remove(friend_id)
+    user.friends = current_friends
+    db.commit()
+    
+    return {"message": "친구 삭제가 완료되었습니다."}
+
 # --- 코스 API ---
 @app.get("/api/courses", response_model=List[schemas.Course])
 def get_courses(db: Session = Depends(get_db)):
     courses = db.query(models.Course).all()
-    # 작성자 이름을 함께 반환하기 위해 처리
-    result = []
-    for c in courses:
-        course_data = schemas.Course.from_orm(c)
-        course_data.author_name = c.author.name if c.author else "익명"
-        result.append(course_data)
-    return result
+    # 작성자 이름을 수동으로 매핑 (또는 relationship 이용)
+    for course in courses:
+        if course.author:
+            course.author_name = course.author.name
+        else:
+            course.author_name = "익명"
+    return courses
 
 @app.post("/api/courses", response_model=schemas.Course)
 def create_course(course: schemas.CourseCreate, user_id: int, db: Session = Depends(get_db)):
@@ -122,6 +138,9 @@ def create_course(course: schemas.CourseCreate, user_id: int, db: Session = Depe
     db.add(db_course)
     db.commit()
     db.refresh(db_course)
+    # 반환 시 이름 포함
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    db_course.author_name = user.name if user else "익명"
     return db_course
 
 @app.delete("/api/courses/{course_id}")
