@@ -51,6 +51,8 @@ class RecordBase(BaseModel):
     time: str
     pace: str
     calories: int
+    cadence: Optional[int] = 0
+    path: Optional[List[List[float]]] = []
     shoe_id: Optional[int] = None
 
 class RecordCreate(RecordBase):

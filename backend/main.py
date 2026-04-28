@@ -15,6 +15,8 @@ try:
         from sqlalchemy import text
         conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS shoe_id INTEGER;"))
+        conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS cadence INTEGER DEFAULT 0;"))
+        conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS friends JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
 except Exception as e:

@@ -43,6 +43,8 @@ class Record(Base):
     time = Column(String) # "00:00:00" 형식
     pace = Column(String) # "0'00\"" 형식
     calories = Column(Integer)
+    cadence = Column(Integer, default=0)
+    path = Column(JSON, default=list) # [[lat, lng], ...]
     date = Column(DateTime, default=datetime.datetime.utcnow)
     user_id = Column(Integer, ForeignKey("users.id"))
     shoe_id = Column(Integer, ForeignKey("shoes.id"), nullable=True)
