@@ -848,7 +848,7 @@ const goToCreate = () => {
   white-space: nowrap !important;
 }
 
-::v-deep(.v-bottom-navigation__content) {
+.v-bottom-navigation__content {
   justify-content: flex-start !important;
   padding: 0 16px;
   min-width: max-content;
@@ -906,7 +906,7 @@ const goToCreate = () => {
   box-shadow: 0 15px 30px rgba(255, 138, 61, 0.6) !important;
 }
 
-::v-deep(.v-bottom-navigation__content) {
+.v-bottom-navigation__content {
   justify-content: space-around !important;
   padding: 0 8px;
   min-width: 100%;
