@@ -63,6 +63,25 @@ class Record(RecordBase):
     class Config:
         from_attributes = True
 
+# Shoe Schemas
+class ShoeBase(BaseModel):
+    name: str
+    brand: str
+    initial_km: float = 0.0
+    is_active: bool = True
+
+class ShoeCreate(ShoeBase):
+    pass
+
+class Shoe(ShoeBase):
+    id: int
+    total_km: float
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 # Token Schemas
 class Token(BaseModel):
     access_token: str

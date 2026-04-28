@@ -123,6 +123,38 @@ def create_record(record: schemas.RecordCreate, user_id: int, db: Session = Depe
     db.refresh(db_record)
     return db_record
 
+# --- 신발 관리 API ---
+@app.get("/api/shoes/{user_id}", response_model=List[schemas.Shoe])
+def get_user_shoes(user_id: int, db: Session = Depends(get_db)):
+    return db.query(models.Shoe).filter(models.Shoe.user_id == user_id).all()
+
+@app.post("/api/shoes", response_model=schemas.Shoe)
+def create_shoe(shoe: schemas.ShoeCreate, user_id: int, db: Session = Depends(get_db)):
+    db_shoe = models.Shoe(**shoe.dict(), user_id=user_id)
+    db.add(db_shoe)
+    db.commit()
+    db.refresh(db_shoe)
+    return db_shoe
+
+@app.patch("/api/shoes/{shoe_id}", response_model=schemas.Shoe)
+def update_shoe_status(shoe_id: int, is_active: bool, db: Session = Depends(get_db)):
+    db_shoe = db.query(models.Shoe).filter(models.Shoe.id == shoe_id).first()
+    if not db_shoe:
+        raise HTTPException(status_code=404, detail="신발을 찾을 수 없습니다.")
+    db_shoe.is_active = is_active
+    db.commit()
+    db.refresh(db_shoe)
+    return db_shoe
+
+@app.delete("/api/shoes/{shoe_id}")
+def delete_shoe(shoe_id: int, db: Session = Depends(get_db)):
+    db_shoe = db.query(models.Shoe).filter(models.Shoe.id == shoe_id).first()
+    if not db_shoe:
+        raise HTTPException(status_code=404, detail="신발을 찾을 수 없습니다.")
+    db.delete(db_shoe)
+    db.commit()
+    return {"message": "신발이 삭제되었습니다."}
+
 if __name__ == "__main__":
     import uvicorn
     import os

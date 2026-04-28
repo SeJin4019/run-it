@@ -15,6 +15,7 @@ class User(Base):
 
     courses = relationship("Course", back_populates="author")
     records = relationship("Record", back_populates="user")
+    shoes = relationship("Shoe", back_populates="user")
 
 class Course(Base):
     __tablename__ = "courses"
@@ -46,3 +47,17 @@ class Record(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
 
     user = relationship("User", back_populates="records")
+
+class Shoe(Base):
+    __tablename__ = "shoes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    brand = Column(String)
+    initial_km = Column(Float, default=0.0)
+    total_km = Column(Float, default=0.0)
+    is_active = Column(Boolean, default=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="shoes")

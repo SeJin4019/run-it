@@ -10,6 +10,7 @@ import AuthDialog from './components/AuthDialog.vue'
 import RunningRecord from './components/RunningRecord.vue'
 import UserHistory from './components/UserHistory.vue'
 import CommunityView from './components/CommunityView.vue'
+import ShoeManagement from './components/ShoeManagement.vue'
 
 /**
  * 🏃‍♂️ 런당근 메인 애플리케이션 컴포넌트
@@ -19,7 +20,7 @@ import CommunityView from './components/CommunityView.vue'
 
 const API_URL = import.meta.env.VITE_API_URL || `http://127.0.0.1:8000/api`
 
-const currentView = ref('discover') // 'discover', 'recommend', 'create', 'detail', 'record', 'history'
+const currentView = ref('discover') // 'discover', 'recommend', 'create', 'detail', 'record', 'history', 'shoes'
 const selectedDifficulty = ref('전체')
 const selectedCourse = ref(null)
 const searchQuery = ref('')
@@ -426,6 +427,14 @@ const goToCreate = () => {
           />
         </div>
 
+        <!-- 신발 관리 뷰 -->
+        <div v-else-if="currentView === 'shoes'">
+          <ShoeManagement 
+            :user-id="currentUser?.id"
+            :api-url="API_URL"
+          />
+        </div>
+
         <!-- 내 활동 뷰 -->
         <div v-else-if="currentView === 'history'">
           <UserHistory 
@@ -496,6 +505,11 @@ const goToCreate = () => {
         <span>커뮤니티</span>
       </VBtn>
 
+      <VBtn value="shoes" v-if="isLoggedIn">
+        <VIcon icon="mdi-shoe-run" />
+        <span>신발</span>
+      </VBtn>
+
       <VBtn value="history" v-if="isLoggedIn">
         <VIcon icon="mdi-account" />
         <span>내 정보</span>
@@ -538,6 +552,24 @@ const goToCreate = () => {
   backdrop-filter: blur(10px);
   border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
   box-shadow: none !important;
+  /* 모바일 가로 스크롤 지원 */
+  overflow-x: auto !important;
+  white-space: nowrap !important;
+}
+
+::v-deep(.v-bottom-navigation__content) {
+  justify-content: flex-start !important;
+  padding: 0 16px;
+  min-width: max-content;
+}
+
+/* 스크롤바 숨기기 */
+.glass-nav::-webkit-scrollbar {
+  display: none;
+}
+.glass-nav {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .animate-fade-in {
