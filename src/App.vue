@@ -586,9 +586,20 @@ const goToCreate = () => {
           </VExpandTransition>
           
           <div class="content-section">
-            <div class="section-header animate-fade-in">
-              <h2 class="text-h6 font-weight-bold">우리 동네 러닝 게시판</h2>
-              <p class="text-caption text-grey">이웃들이 공유한 숨은 러닝 명소를 찾아보세요</p>
+            <div class="section-header animate-fade-in d-flex justify-space-between align-center">
+              <div>
+                <h2 class="text-h6 font-weight-bold">우리 동네 러닝 게시판</h2>
+                <p class="text-caption text-grey">이웃들이 공유한 숨은 러닝 명소를 찾아보세요</p>
+              </div>
+              <VBtn 
+                color="primary" 
+                variant="flat" 
+                prepend-icon="mdi-pencil" 
+                rounded="pill" 
+                @click="goToCreate"
+              >
+                코스 등록
+              </VBtn>
             </div>
 
             <CourseFilters v-model="selectedDifficulty" />
