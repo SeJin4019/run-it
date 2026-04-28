@@ -118,8 +118,8 @@ const startRunning = () => {
 
         const { latitude, longitude, accuracy } = position.coords
 
-        // GPS 정확도가 25m 이상으로 떨어지면 튀는 위치로 간주하고 무시 (건물 관통 방지)
-        if (accuracy && accuracy > 25) return
+        // GPS 정확도가 80m 이상으로 떨어지면 완전히 튀는 위치로 간주하고 무시 (iOS 초기 연결 허용)
+        if (accuracy && accuracy > 80) return
 
         const newPos = [latitude, longitude]
 
@@ -274,7 +274,7 @@ const stopRunning = async () => {
 const saveRecord = async () => {
   if (isManualMode.value) {
     const record = {
-      distance: manualDistance.value,
+      distance: Number(manualDistance.value).toFixed(2),
       time: manualTime.value,
       pace: calculatePace(manualDistance.value, manualTime.value),
       calories: Math.floor(manualDistance.value * 60), // 대략적 계산
@@ -289,7 +289,7 @@ const saveRecord = async () => {
   
   if (currentPath.value.length > 0) {
     const record = {
-      distance: distance.value,
+      distance: Number(distance.value.toFixed(2)),
       time: formattedTime.value,
       pace: pace.value,
       calories: calories.value,

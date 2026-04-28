@@ -29,7 +29,7 @@ const isAuthor = computed(() => {
   return props.course.authorId === props.currentUser.id
 })
 
-const authorName = computed(() => props.course.authorName || '익명')
+const authorName = computed(() => props.course.author_name || '익명')
 const isMyCourse = computed(() => props.currentUser && props.course.authorId === props.currentUser.id)
 
 const toggleLike = (e) => {

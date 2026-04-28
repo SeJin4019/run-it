@@ -155,6 +155,14 @@ const fetchLiveFriends = async () => {
       
       liveFriends.value = newData
       previousLiveFriends.value = newData
+      
+      // 열려 있는 실시간 지도가 있다면, 갱신된 새 데이터 참조로 교체해주어야 Vue가 반응하여 즉각 그려줌
+      if (showLiveMap.value && liveMapFriend.value) {
+        const updatedFriend = newData.find(f => f.user_id === liveMapFriend.value.user_id)
+        if (updatedFriend) {
+          liveMapFriend.value = updatedFriend
+        }
+      }
     }
   } catch (e) {
     console.error('실시간 친구 위치 로딩 실패:', e)
@@ -727,7 +735,7 @@ const goToCreate = () => {
         <VCardText class="pt-0 pb-6">
           <UserHistory 
             :user="selectedFriend"
-            :records="globalRecords.filter(r => r.userId === selectedFriend.id)"
+            :records="globalRecords.filter(r => r.user_id === selectedFriend.id)"
             :is-me="false"
             :is-friend="currentUser?.friends?.includes(selectedFriend.id)"
             @add-friend="handleAddFriend"

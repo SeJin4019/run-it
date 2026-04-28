@@ -135,7 +135,7 @@ const getShoeName = (shoeId) => {
         <div class="d-flex justify-space-between align-center">
           <div>
             <div class="text-caption text-grey mb-1">{{ formatDate(record.date) }} 러닝</div>
-            <div class="text-h6 font-weight-black">{{ record.distance }} km</div>
+            <div class="text-h6 font-weight-black">{{ Number(record.distance).toFixed(2) }} km</div>
           </div>
           <div class="text-right d-flex flex-column align-end">
             <div class="text-body-2 font-weight-bold text-primary mb-1">{{ record.pace }} / km</div>
@@ -153,7 +153,7 @@ const getShoeName = (shoeId) => {
           <div class="d-flex justify-space-between align-start mb-2">
             <div>
               <div class="text-caption opacity-80">{{ formatDate(selectedRecord.date) }} 러닝</div>
-              <div class="text-h4 font-weight-black">{{ selectedRecord.distance }} <span class="text-h6">km</span></div>
+              <div class="text-h4 font-weight-black">{{ Number(selectedRecord.distance).toFixed(2) }} <span class="text-h6">km</span></div>
             </div>
             <VBtn icon="mdi-close" variant="text" color="white" @click="showDetailDialog = false" />
           </div>
