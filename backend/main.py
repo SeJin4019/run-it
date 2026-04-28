@@ -294,11 +294,23 @@ def get_friends_live_locations(user_id: int, db: Session = Depends(get_db)):
     if not user or not user.friends:
         return []
     
+    # friends가 JSON으로 저장되어 있으므로 리스트인지 확인
+    friend_ids = user.friends
+    if isinstance(friend_ids, str):
+        import json
+        try:
+            friend_ids = json.loads(friend_ids)
+        except:
+            friend_ids = []
+            
+    if not friend_ids:
+        return []
+    
     # 5분 이내에 업데이트된 활성 상태의 친구만 조회
     time_threshold = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
     
     live_friends = db.query(models.LiveLocation).join(models.User, models.LiveLocation.user_id == models.User.id)\
-        .filter(models.LiveLocation.user_id.in_(user.friends))\
+        .filter(models.LiveLocation.user_id.in_(friend_ids))\
         .filter(models.LiveLocation.is_active == True)\
         .filter(models.LiveLocation.last_updated >= time_threshold).all()
     

@@ -29,6 +29,9 @@ const currentPath = ref([])
 const startPosition = ref([37.5665, 126.9780]) // Default Seoul City Hall
 let watchId = null
 const cadence = ref(0) // steps per minute
+const isManualMode = ref(false)
+const manualDistance = ref(0)
+const manualTime = ref('00:00:00')
 const showRecommendDialog = ref(false)
 const lastSavedPath = ref([])
 const lastSavedDistance = ref(0)
@@ -239,6 +242,19 @@ const stopRunning = async () => {
 }
 
 const saveRecord = async () => {
+  if (isManualMode.value) {
+    const record = {
+      distance: manualDistance.value,
+      time: manualTime.value,
+      pace: calculatePace(manualDistance.value, manualTime.value),
+      calories: Math.floor(manualDistance.value * 60), // 대략적 계산
+      shoe_id: selectedShoe.value
+    }
+    emit('save-record', record)
+    emit('back') // 직접 입력은 경로가 없으므로 바로 돌아감
+    return
+  }
+
   await stopRunning()
   
   if (currentPath.value.length > 0) {
@@ -247,7 +263,8 @@ const saveRecord = async () => {
       time: formattedTime.value,
       pace: pace.value,
       calories: calories.value,
-      shoe_id: selectedShoe.value
+      shoe_id: selectedShoe.value,
+      path: currentPath.value // 경로 데이터 포함
     }
     
     // 추천 경로용 데이터 저장
@@ -256,9 +273,27 @@ const saveRecord = async () => {
     
     emit('save-record', record)
     
-    // 기록 저장 후 추천 다이얼로그 표시
-    showRecommendDialog.value = true
+    // 기록 저장 후 추천 다이얼로그 표시 (움직임이 아주 조금이라도 있을 때)
+    console.log('기록 저장 완료, 추천 다이얼로그 체크:', distance.value)
+    if (distance.value > 0.01 || currentPath.value.length > 1) {
+      showRecommendDialog.value = true
+    } else {
+      console.log('거리 부족으로 추천 건너뜀')
+      emit('back')
+    }
+  } else {
+    emit('back')
   }
+}
+
+const calculatePace = (dist, timeStr) => {
+  if (!dist || dist <= 0) return "0'00\""
+  const parts = timeStr.split(':').map(Number)
+  const seconds = (parts[0] * 3600) + (parts[1] * 60) + parts[2]
+  const paceSec = seconds / dist
+  const min = Math.floor(paceSec / 60)
+  const sec = Math.floor(paceSec % 60)
+  return `${min}'${sec.toString().padStart(2, '0')}"`
 }
 
 const handleRecommendConfirm = (confirm) => {
@@ -301,17 +336,50 @@ onUnmounted(() => {
       <h2 class="text-h6 font-weight-black ml-2">오늘의 러닝</h2>
     </div>
 
-    <!-- Map container -->
+    <!-- Map or Manual Input section -->
     <div class="map-section rounded-xl overflow-hidden mb-4 border flex-grow-1" style="min-height: 250px; position: relative;">
-      <!-- Placeholder -->
-      <div v-if="!map && elapsedTime === 0" class="d-flex align-center justify-center bg-grey-lighten-3" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;">
-        <div class="text-center text-grey">
-          <VIcon icon="mdi-map-marker-radius" size="48" class="mb-2" />
-          <p class="text-caption">시작 버튼을 누르면 지도가 표시됩니다.</p>
+      <template v-if="!isManualMode">
+        <!-- Placeholder -->
+        <div v-if="!map && elapsedTime === 0" class="d-flex align-center justify-center bg-grey-lighten-3" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;">
+          <div class="text-center text-grey">
+            <VIcon icon="mdi-map-marker-radius" size="48" class="mb-2" />
+            <p class="text-caption">시작 버튼을 누르면 지도가 표시됩니다.</p>
+          </div>
         </div>
-      </div>
-      <!-- Actual Leaflet Map -->
-      <div ref="mapContainer" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;" v-show="map || elapsedTime > 0"></div>
+        <!-- Actual Leaflet Map -->
+        <div ref="mapContainer" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;" v-show="map || elapsedTime > 0"></div>
+      </template>
+      
+      <template v-else>
+        <div class="manual-input-form fill-height pa-4 bg-grey-lighten-4 d-flex flex-column justify-center">
+          <h3 class="text-subtitle-1 font-weight-bold mb-4 text-center">러닝 정보 직접 입력</h3>
+          <VTextField
+            v-model.number="manualDistance"
+            label="러닝 거리 (km)"
+            type="number"
+            variant="outlined"
+            rounded="xl"
+            bg-color="white"
+            class="mb-3"
+            density="comfortable"
+            prepend-inner-icon="mdi-map-marker-distance"
+          />
+          <VTextField
+            v-model="manualTime"
+            label="러닝 시간 (HH:MM:SS)"
+            placeholder="00:00:00"
+            variant="outlined"
+            rounded="xl"
+            bg-color="white"
+            class="mb-3"
+            density="comfortable"
+            prepend-inner-icon="mdi-clock-outline"
+          />
+          <div class="text-center text-caption text-grey">
+            입력하신 정보를 바탕으로 페이스와 칼로리가 계산됩니다.
+          </div>
+        </div>
+      </template>
     </div>
 
     <div class="stats-card pa-6 rounded-xl text-center mb-4 shrink-0">
@@ -370,16 +438,28 @@ onUnmounted(() => {
       </VRow>
     </div>
 
-    <div class="controls d-flex justify-center align-center">
+    <div class="controls d-flex flex-column align-center justify-center shrink-0">
       <!-- 1. 시작 전 상태 -->
-      <VBtn
-        v-if="!isRunning && elapsedTime === 0"
-        color="primary"
-        size="x-large"
-        class="action-btn-large rounded-circle"
-        icon="mdi-play"
-        @click="startRunning"
-      />
+      <template v-if="!isRunning && elapsedTime === 0">
+        <VBtn
+          color="primary"
+          size="x-large"
+          class="action-btn-large rounded-circle mb-4"
+          icon="mdi-play"
+          style="width: 80px; height: 80px;"
+          @click="isManualMode ? saveRecord() : startRunning()"
+        />
+        <VBtn
+          variant="text"
+          :color="isManualMode ? 'primary' : 'grey'"
+          size="small"
+          class="font-weight-bold"
+          @click="isManualMode = !isManualMode"
+        >
+          <VIcon :icon="isManualMode ? 'mdi-run' : 'mdi-pencil-box-outline'" class="mr-1" />
+          {{ isManualMode ? '실시간 트래킹 모드' : '기록 직접 입력하기' }}
+        </VBtn>
+      </template>
       
       <!-- 2. 실행 중 상태 (커다란 빨간색 일시정지 버튼) -->
       <VBtn

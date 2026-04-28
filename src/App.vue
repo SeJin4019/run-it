@@ -230,7 +230,7 @@ const handleDeclineRequest = async (requestId) => {
 const startLiveFriendsPolling = () => {
   fetchLiveFriends()
   if (liveFriendsTimer.value) clearInterval(liveFriendsTimer.value)
-  liveFriendsTimer.value = setInterval(fetchLiveFriends, 15000) // 15초마다 갱신
+  liveFriendsTimer.value = setInterval(fetchLiveFriends, 10000) // 10초마다 갱신
 }
 
 /**
