@@ -14,8 +14,8 @@ app = FastAPI(title="Run-it API")
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://sejin4019.github.io", # 배포된 깃허브 프론트엔드 도메인
-    "https://SeJin4019.github.io" 
+    "https://sejin4019.github.io",
+    "https://SeJin4019.github.io",
 ]
 
 app.add_middleware(
@@ -125,4 +125,6 @@ def create_record(record: schemas.RecordCreate, user_id: int, db: Session = Depe
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import os
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
