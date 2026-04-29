@@ -959,7 +959,7 @@ const goToCreate = () => {
           <div class="live-stats-overlay px-4 py-3 bg-white-glass d-flex justify-space-around align-center">
             <div class="text-center">
               <div class="text-caption text-grey">거리</div>
-              <div class="text-subtitle-1 font-weight-black">{{ liveMapFriend?.distance?.toFixed(2) || '0.00' }} km</div>
+              <div class="text-subtitle-1 font-weight-black">{{ Number(liveMapFriend?.distance || 0).toFixed(2) }} km</div>
             </div>
             <div class="text-center border-x border-grey-lighten-3 px-4">
               <div class="text-caption text-grey">시간</div>
@@ -1166,7 +1166,7 @@ const goToCreate = () => {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 10;
+  z-index: 1000; /* Leaflet 지도보다 위로 오도록 높임 */
   border-bottom: 1px solid rgba(0,0,0,0.05);
 }
 .bg-white-glass {
