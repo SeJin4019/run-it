@@ -209,9 +209,9 @@ const openMap = (friend) => {
                   <div v-else-if="getUserLatestRecord(friend.id)">최근 러닝: {{ Number(getUserLatestRecord(friend.id).distance).toFixed(2) }}km ({{ getUserLatestRecord(friend.id).pace }})</div>
                   <div v-else>최근 러닝 기록 없음</div>
                   
-                  <div class="mt-1 d-flex align-center opacity-70">
-                    <VIcon icon="mdi-access-point" size="12" class="mr-1" :color="isOnline(friend) ? 'success' : 'grey'" />
-                    <span>{{ formatLastSeen(friend.last_seen) }}</span>
+                  <div class="mt-1 d-flex align-center" :class="isOnline(friend) ? 'text-success font-weight-bold' : 'opacity-70'">
+                    <VIcon :icon="isOnline(friend) ? 'mdi-record' : 'mdi-access-point'" size="12" class="mr-1" />
+                    <span>{{ isOnline(friend) ? '현재 접속 중' : formatLastSeen(friend.last_seen) }}</span>
                   </div>
                 </div>
               </div>

@@ -141,8 +141,15 @@ onMounted(async () => {
     console.error('유저 로딩 실패:', e)
   }
 
-  // 데이터 초기화
-  if (isLoggedIn.value) {
+  // 데이터 초기화 및 정보 동기화
+  if (isLoggedIn.value && currentUser.value) {
+    // 최신 유저 정보 동기화 (프로필 이미지 등 반영)
+    const freshMe = globalUsers.value.find(u => u.id === currentUser.value.id)
+    if (freshMe) {
+      currentUser.value = freshMe
+      localStorage.setItem('rundanggeun_user', JSON.stringify(freshMe))
+    }
+    
     fetchUserRecords()
     fetchUserShoes()
     startLiveFriendsPolling()
