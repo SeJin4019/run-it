@@ -55,6 +55,24 @@ const isOnline = (user) => {
   return (now - lastSeen) < 3 * 60 * 1000 // 3분 이내 접속
 }
 
+const formatLastSeen = (lastSeenStr) => {
+  if (!lastSeenStr) return '기록 없음'
+  
+  const lastSeen = new Date(lastSeenStr.endsWith('Z') ? lastSeenStr : lastSeenStr + 'Z')
+  const now = new Date()
+  const diffMs = now - lastSeen
+  const diffMin = Math.floor(diffMs / (1000 * 60))
+  const diffHour = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDay = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffMin < 1) return '방금 전 접속'
+  if (diffMin < 60) return `${diffMin}분 전 접속`
+  if (diffHour < 24) return `${diffHour}시간 전 접속`
+  if (diffDay < 7) return `${diffDay}일 전 접속`
+  
+  return lastSeen.toLocaleDateString()
+}
+
 const currentTab = ref('friends')
 
 // 랭킹 계산 (친구 + 나 포함)
@@ -187,9 +205,14 @@ const openMap = (friend) => {
                   <VChip v-if="getLiveStatus(friend.id)" color="error" size="x-small" class="ml-2 animate-pulse" variant="flat">LIVE</VChip>
                 </div>
                 <div class="text-caption text-grey">
-                  <span v-if="getLiveStatus(friend.id)" class="text-error font-weight-bold">🔥 지금 달리는 중!</span>
-                  <span v-else-if="getUserLatestRecord(friend.id)">최근 러닝: {{ Number(getUserLatestRecord(friend.id).distance).toFixed(2) }}km ({{ getUserLatestRecord(friend.id).pace }})</span>
-                  <span v-else>최근 러닝 기록 없음</span>
+                  <div v-if="getLiveStatus(friend.id)" class="text-error font-weight-bold">🔥 지금 달리는 중!</div>
+                  <div v-else-if="getUserLatestRecord(friend.id)">최근 러닝: {{ Number(getUserLatestRecord(friend.id).distance).toFixed(2) }}km ({{ getUserLatestRecord(friend.id).pace }})</div>
+                  <div v-else>최근 러닝 기록 없음</div>
+                  
+                  <div class="mt-1 d-flex align-center opacity-70">
+                    <VIcon icon="mdi-access-point" size="12" class="mr-1" :color="isOnline(friend) ? 'success' : 'grey'" />
+                    <span>{{ formatLastSeen(friend.last_seen) }}</span>
+                  </div>
                 </div>
               </div>
               <VBtn v-if="getLiveStatus(friend.id)" icon="mdi-map-marker" variant="text" color="error" size="small" @click.stop="openMap(friend)" />
