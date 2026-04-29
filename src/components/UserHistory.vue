@@ -27,9 +27,9 @@ const stats = computed(() => {
   const totalKm = props.records.reduce((acc, rec) => acc + parseFloat(rec.distance), 0)
   const totalRuns = props.records.length
   return {
-    totalKm: totalKm.toFixed(1),
+    totalKm: totalKm.toFixed(2),
     totalRuns,
-    avgKm: totalRuns ? (totalKm / totalRuns).toFixed(1) : 0
+    avgKm: totalRuns ? (totalKm / totalRuns).toFixed(2) : '0.00'
   }
 })
 
@@ -130,23 +130,19 @@ const updateProfileImage = async (base64Str) => {
   <div class="history-container animate-fade-in">
     <!-- 유저 프로필 섹션 -->
     <div class="profile-section d-flex align-center mb-8 pa-4 rounded-xl bg-white border">
-      <div 
-        class="position-relative" 
-        :style="isMe ? 'cursor: pointer' : ''"
-        @click="isMe ? $refs.fileInput.click() : null"
-      >
-        <VAvatar :color="user.profile_image ? 'transparent' : 'primary'" size="64" class="mr-4">
+      <div class="position-relative mr-4">
+        <VAvatar :color="user.profile_image ? 'transparent' : 'primary'" size="64">
           <img v-if="user.profile_image" :src="user.profile_image" alt="Profile" style="width:100%; height:100%; object-fit:cover;">
           <span v-else class="text-h5 text-white">{{ user.name[0] }}</span>
         </VAvatar>
-        <VBadge
+        <VBtn
           v-if="isMe"
           icon="mdi-camera"
           color="secondary"
-          offset-x="22"
-          offset-y="18"
+          size="x-small"
           class="position-absolute"
-          style="right: 0; bottom: 0; pointer-events: none;"
+          style="bottom: -5px; right: -5px; width: 24px; height: 24px; border: 2px solid white; z-index: 2;"
+          @click.stop="$refs.fileInput.click()"
         />
         <input 
           ref="fileInput"
@@ -253,7 +249,7 @@ const updateProfileImage = async (base64Str) => {
     </div>
 
     <!-- 상세 기록 팝업 다이얼로그 -->
-    <VDialog v-model="showDetailDialog" max-width="500" v-if="selectedRecord" scrollable>
+    <VDialog v-model="showDetailDialog" max-width="500" v-if="selectedRecord">
       <VCard class="rounded-xl bg-grey-lighten-4">
         <!-- 상단 헤더 영역 -->
         <VCardItem class="bg-primary text-white pa-4 pb-6">
@@ -266,17 +262,18 @@ const updateProfileImage = async (base64Str) => {
           </div>
         </VCardItem>
 
-        <!-- 지도 영역 -->
-        <div v-if="selectedRecord.path && selectedRecord.path.length > 0" class="map-container-wrapper bg-white">
-          <MapRoutePicker :model-value="selectedRecord.path" :read-only="true" />
-        </div>
-        <div v-else class="pa-8 text-center bg-white text-grey">
-          <VIcon icon="mdi-map-marker-off" size="48" class="mb-2 opacity-50" />
-          <div class="text-caption">경로 데이터가 없는 기록입니다.</div>
-        </div>
-
         <!-- 세부 정보 영역 -->
-        <VCardText class="pa-4 pt-4" style="height: auto;">
+        <VCardText class="pa-0">
+          <!-- 지도 영역 (스크롤 내부에 포함) -->
+          <div v-if="selectedRecord.path && selectedRecord.path.length > 0" class="map-container-wrapper bg-white">
+            <MapRoutePicker :model-value="selectedRecord.path" :read-only="true" />
+          </div>
+          <div v-else class="pa-8 text-center bg-white text-grey">
+            <VIcon icon="mdi-map-marker-off" size="48" class="mb-2 opacity-50" />
+            <div class="text-caption">경로 데이터가 없는 기록입니다.</div>
+          </div>
+
+          <div class="pa-4">
           <VRow>
             <VCol cols="6">
               <VCard flat class="pa-3 rounded-lg text-center bg-white">
@@ -353,19 +350,22 @@ const updateProfileImage = async (base64Str) => {
             이 기록을 추천 코스로 공유하기
           </VBtn>
 
-          <!-- 삭제 버튼 -->
+          </div>
+        </VCardText>
+
+        <!-- 삭제 버튼 (푸터 영역처럼 하단에 고정) -->
+        <VCardActions v-if="isMe" class="bg-white pa-4">
           <VBtn 
-            v-if="isMe"
             color="error" 
             variant="text" 
             block 
-            class="mt-2 rounded-lg font-weight-bold" 
+            class="rounded-lg font-weight-bold"
             prepend-icon="mdi-delete"
             @click="handleDeleteRecord"
           >
             기록 삭제하기
           </VBtn>
-        </VCardText>
+        </VCardActions>
       </VCard>
     </VDialog>
   </div>

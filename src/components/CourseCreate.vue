@@ -173,7 +173,7 @@ const handleSubmit = async () => {
 onMounted(() => {
   if (props.prefilledData) {
     newCourse.value.path = props.prefilledData.path
-    newCourse.value.distance = props.prefilledData.distance
+    newCourse.value.distance = Number(props.prefilledData.distance).toFixed(2)
     // 경로가 있으면 지도에 맞춰서 거리 등이 자동 계산될 수 있도록 함
   }
 })

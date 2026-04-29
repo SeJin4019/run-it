@@ -202,15 +202,8 @@ const refreshData = async () => {
 }
 
 const fetchUserRecords = async () => {
-  if (!currentUser.value) return
-  try {
-    const res = await fetch(`${API_URL}/records/${currentUser.value.id}`)
-    if (res.ok) {
-      globalRecords.value = await res.json()
-    }
-  } catch (e) {
-    console.error('기록 로딩 실패:', e)
-  }
+  // 전체 기록을 가져오도록 변경하여 친구 기록이 사라지는 문제 해결
+  await fetchGlobalRecords()
 }
 
 const fetchUserShoes = async () => {
