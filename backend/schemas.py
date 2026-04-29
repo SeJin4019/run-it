@@ -106,5 +106,8 @@ class LiveLocationUpdate(BaseModel):
     user_id: int
     latitude: float
     longitude: float
+    distance: Optional[float] = 0.0
+    pace: Optional[str] = "0'00\""
+    time: Optional[str] = "00:00:00"
     path: List[List[float]]
     is_active: bool

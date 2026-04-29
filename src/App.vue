@@ -954,9 +954,27 @@ const goToCreate = () => {
           <VBtn icon="mdi-close" @click="showLiveMap = false" />
         </VToolbar>
         
-        <VCardText class="pa-0" style="height: 400px; position: relative;">
-          <!-- 실시간 이동 경로 지도 컴포넌트 -->
-          <LiveMap v-if="showLiveMap && liveMapFriend" :friend="liveMapFriend" />
+        <VCardText class="pa-0" style="position: relative;">
+          <!-- 실시간 스탯 바 -->
+          <div class="live-stats-overlay px-4 py-3 bg-white-glass d-flex justify-space-around align-center">
+            <div class="text-center">
+              <div class="text-caption text-grey">거리</div>
+              <div class="text-subtitle-1 font-weight-black">{{ liveMapFriend?.distance?.toFixed(2) || '0.00' }} km</div>
+            </div>
+            <div class="text-center border-x border-grey-lighten-3 px-4">
+              <div class="text-caption text-grey">시간</div>
+              <div class="text-subtitle-1 font-weight-black">{{ liveMapFriend?.time || '00:00:00' }}</div>
+            </div>
+            <div class="text-center">
+              <div class="text-caption text-grey">페이스</div>
+              <div class="text-subtitle-1 font-weight-black text-primary">{{ liveMapFriend?.pace || "0'00\"" }}</div>
+            </div>
+          </div>
+
+          <div style="height: 400px; width: 100%;">
+            <!-- 실시간 이동 경로 지도 컴포넌트 -->
+            <LiveMap v-if="showLiveMap && liveMapFriend" :friend="liveMapFriend" />
+          </div>
         </VCardText>
         
         <VCardActions class="bg-white pa-4">
@@ -1143,11 +1161,18 @@ const goToCreate = () => {
   border-top: 1px solid #e9ecef;
 }
 
-/* 실시간 상태 바 애니메이션 */
-.live-status-bar {
-  cursor: pointer;
+.live-stats-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
 }
-
+.bg-white-glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+}
 .live-pulse-container {
   position: relative;
   width: 12px;

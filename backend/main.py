@@ -14,6 +14,9 @@ try:
     with engine.begin() as conn:
         from sqlalchemy import text
         conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
+        conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS distance FLOAT DEFAULT 0.0;"))
+        conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS pace VARCHAR DEFAULT \"0'00\\\"\";"))
+        conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS time VARCHAR DEFAULT '00:00:00';"))
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS shoe_id INTEGER;"))
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS cadence INTEGER DEFAULT 0;"))
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
@@ -372,9 +375,12 @@ def update_live_location(data: schemas.LiveLocationUpdate, db: Session = Depends
     db_loc = db.query(models.LiveLocation).filter(models.LiveLocation.user_id == data.user_id).first()
     if not db_loc:
         db_loc = models.LiveLocation(
-            user_id=data.user_id, 
-            latitude=data.latitude, 
-            longitude=data.longitude, 
+            user_id=data.user_id,
+            latitude=data.latitude,
+            longitude=data.longitude,
+            distance=data.distance,
+            pace=data.pace,
+            time=data.time,
             path=data.path,
             is_active=data.is_active
         )
@@ -382,6 +388,9 @@ def update_live_location(data: schemas.LiveLocationUpdate, db: Session = Depends
     else:
         db_loc.latitude = data.latitude
         db_loc.longitude = data.longitude
+        db_loc.distance = data.distance
+        db_loc.pace = data.pace
+        db_loc.time = data.time
         db_loc.path = data.path
         db_loc.is_active = data.is_active
     
@@ -421,6 +430,9 @@ def get_friends_live_locations(user_id: int, db: Session = Depends(get_db)):
             "name": loc.user.name,
             "latitude": loc.latitude,
             "longitude": loc.longitude,
+            "distance": loc.distance,
+            "pace": loc.pace,
+            "time": loc.time,
             "path": loc.path,
             "last_updated": loc.last_updated
         })

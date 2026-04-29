@@ -287,6 +287,9 @@ const sendLiveLocation = async (isActive) => {
         user_id: props.userId,
         latitude: lastPos[0],
         longitude: lastPos[1],
+        distance: Number(distance.value.toFixed(2)),
+        pace: pace.value,
+        time: formattedTime.value,
         path: currentPath.value,
         is_active: isActive
       })
