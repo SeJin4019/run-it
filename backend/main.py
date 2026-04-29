@@ -286,6 +286,10 @@ def add_course_comment(course_id: int, comment: dict, db: Session = Depends(get_
     return db_course
 
 # --- 러닝 기록 API ---
+@app.get("/api/records", response_model=List[schemas.Record])
+def get_all_records(db: Session = Depends(get_db)):
+    return db.query(models.Record).all()
+
 @app.get("/api/records/{user_id}", response_model=List[schemas.Record])
 def get_user_records(user_id: int, db: Session = Depends(get_db)):
     return db.query(models.Record).filter(models.Record.user_id == user_id).all()

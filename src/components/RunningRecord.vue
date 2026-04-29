@@ -28,6 +28,7 @@ let userMarker = null
 const currentPath = ref([])
 const startPosition = ref([37.5665, 126.9780]) // Default Seoul City Hall
 let watchId = null
+let lastUpdateTime = 0
 const cadence = ref(0) // steps per minute
 const cadenceDistanceHistory = ref([]) // 5-second window history for real-time cadence
 const splits = ref([])
@@ -176,9 +177,14 @@ const startRunning = () => {
           const p2 = L.latLng(newPos[0], newPos[1])
           const distMeters = p1.distanceTo(p2)
 
-          // 비정상적인 도약 방지 (건물 가로지르기 등 GPS 튐 현상)
-          // 사람이 1초에 12m(시속 43km) 이상 이동하는 것은 불가능으로 간주
-          if (distMeters > 15) return 
+          // 비정상적인 도약 방지 (GPS 튐 현상 제어)
+          // 시간 간격(초) 계산
+          const now = Date.now()
+          const timeDelta = lastUpdateTime ? (now - lastUpdateTime) / 1000 : 1
+          lastUpdateTime = now
+
+          // 초당 12m(시속 43.2km) 이상 이동은 비정상으로 간주하여 무시
+          if (timeDelta > 0 && distMeters > 12 * timeDelta) return 
 
           // 너무 작은 움직임(GPS 오차, 예: 3m 이하)은 무시
           if (distMeters > 3) {

@@ -152,6 +152,9 @@ onMounted(async () => {
     console.error('유저 로딩 실패:', e)
   }
 
+  // 전체 기록 불러오기
+  fetchGlobalRecords()
+
   // 온라인 상태(하트비트) 시작
   sendHeartbeat()
   heartbeatTimer = setInterval(sendHeartbeat, 60000)
@@ -542,6 +545,17 @@ const handleDeleteCourse = async (courseId) => {
     }
   } catch (e) {
     console.error('코스 삭제 실패:', e)
+  }
+}
+
+const fetchGlobalRecords = async () => {
+  try {
+    const res = await fetch(`${API_URL}/records`)
+    if (res.ok) {
+      globalRecords.value = await res.json()
+    }
+  } catch (e) {
+    console.error('전체 기록 로딩 실패:', e)
   }
 }
 

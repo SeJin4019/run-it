@@ -123,7 +123,7 @@ const addComment = () => {
           <VCol cols="6">
             <VCard flat border class="text-center pa-4 rounded-xl bg-grey-lighten-5">
               <div class="text-caption text-grey mb-1">거리</div>
-              <div class="text-h6 font-weight-black text-primary">{{ course.distance }}km</div>
+              <div class="text-h6 font-weight-black text-primary">{{ Number(course.distance).toFixed(2) }}km</div>
             </VCard>
           </VCol>
           <VCol cols="6">

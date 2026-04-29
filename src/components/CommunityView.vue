@@ -34,7 +34,7 @@ const recommendedFriends = computed(() => {
 })
 
 const getUserLatestRecord = (userId) => {
-  const userRecords = props.globalRecords.filter(r => r.userId === userId)
+  const userRecords = props.globalRecords.filter(r => r.user_id === userId)
   if (userRecords.length === 0) return null
   return userRecords[userRecords.length - 1]
 }
@@ -183,7 +183,7 @@ const openMap = (friend) => {
                 🔥 지금 달리는 중!
               </span>
               <span v-else-if="getUserLatestRecord(friend.id)">
-                최근 러닝: {{ getUserLatestRecord(friend.id).distance }}km ({{ getUserLatestRecord(friend.id).pace }})
+                최근 러닝: {{ Number(getUserLatestRecord(friend.id).distance).toFixed(2) }}km ({{ getUserLatestRecord(friend.id).pace }})
               </span>
               <span v-else>최근 러닝 기록 없음</span>
             </div>

@@ -159,6 +159,17 @@ const updateProfileImage = async (base64Str) => {
       <div>
         <h3 class="text-h6 font-weight-black">{{ user.name }}님</h3>
         <p class="text-caption text-grey">{{ user.email }}</p>
+        <VBtn 
+          v-if="isMe" 
+          variant="text" 
+          density="compact" 
+          color="primary" 
+          class="px-0 text-caption font-weight-bold"
+          prepend-icon="mdi-camera-outline"
+          @click="$refs.fileInput.click()"
+        >
+          프로필 사진 변경
+        </VBtn>
       </div>
       <VSpacer />
       <VBtn v-if="isMe" variant="text" color="grey" icon="mdi-logout" @click="emit('logout')" />
@@ -242,8 +253,8 @@ const updateProfileImage = async (base64Str) => {
     </div>
 
     <!-- 상세 기록 팝업 다이얼로그 -->
-    <VDialog v-model="showDetailDialog" max-width="500" v-if="selectedRecord">
-      <VCard class="rounded-xl overflow-hidden bg-grey-lighten-4">
+    <VDialog v-model="showDetailDialog" max-width="500" v-if="selectedRecord" scrollable>
+      <VCard class="rounded-xl bg-grey-lighten-4">
         <!-- 상단 헤더 영역 -->
         <VCardItem class="bg-primary text-white pa-4 pb-6">
           <div class="d-flex justify-space-between align-start mb-2">
@@ -265,7 +276,7 @@ const updateProfileImage = async (base64Str) => {
         </div>
 
         <!-- 세부 정보 영역 -->
-        <VCardText class="pa-4">
+        <VCardText class="pa-4 pt-4" style="height: auto;">
           <VRow>
             <VCol cols="6">
               <VCard flat class="pa-3 rounded-lg text-center bg-white">

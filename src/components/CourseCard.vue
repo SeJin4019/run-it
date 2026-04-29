@@ -101,7 +101,7 @@ const deleteCourse = (e) => {
       <!-- 거리/고도 요약 정보 -->
       <div class="d-flex align-center py-2 px-3 bg-grey-lighten-5 rounded-pill mb-4">
         <div class="text-caption">
-          거리 <strong class="text-primary">{{ course.distance }}km</strong>
+          거리 <strong class="text-primary">{{ Number(course.distance).toFixed(2) }}km</strong>
         </div>
         <VDivider vertical class="mx-3" />
         <div class="text-caption">
