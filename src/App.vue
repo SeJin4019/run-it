@@ -333,6 +333,9 @@ const handleDeclineRequest = async (requestId) => {
 
 const startLiveFriendsPolling = () => {
   fetchLiveFriends()
+  // 친구 수락 등 상태 변화를 감지하기 위해 가끔 전체 데이터도 갱신 (30초마다)
+  setInterval(refreshData, 30000)
+  
   if (liveFriendsTimer.value) clearInterval(liveFriendsTimer.value)
   liveFriendsTimer.value = setInterval(fetchLiveFriends, 5000) // 5초마다 갱신 (실시간성 강화)
 }
@@ -903,6 +906,7 @@ const goToCreate = () => {
             @recommend-route="handleRecommendRoute"
             @delete-record="handleDeleteRecord"
             @update-user="handleUpdateUser"
+            @logout="handleLogout"
           />
         </div>
       </VContainer>
