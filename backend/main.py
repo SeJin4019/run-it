@@ -20,6 +20,7 @@ try:
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS splits JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS friends JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP;"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image TEXT;"))
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS comments JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS liked_users JSON DEFAULT '[]'::json;"))
@@ -142,7 +143,8 @@ def get_pending_requests(user_id: int, db: Session = Depends(get_db)):
             "request_id": r.id,
             "from_user_id": r.from_user_id,
             "from_user_name": r.from_user.name,
-            "from_user_email": r.from_user.email
+            "from_user_email": r.from_user.email,
+            "from_user_profile_image": r.from_user.profile_image
         })
     return result
 
@@ -203,6 +205,16 @@ def user_heartbeat(user_id: int, db: Session = Depends(get_db)):
         user.last_seen = datetime.datetime.utcnow()
         db.commit()
     return {"status": "ok"}
+
+@app.put("/api/users/{user_id}/profile-image", response_model=schemas.User)
+def update_profile_image(user_id: int, image_data: schemas.ProfileImageUpdate, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.profile_image = image_data.profile_image
+    db.commit()
+    db.refresh(user)
+    return user
 
 # --- 코스 API ---
 @app.get("/api/courses", response_model=List[schemas.Course])

@@ -21,6 +21,24 @@ import LiveMap from './components/LiveMap.vue'
 
 const API_URL = import.meta.env.VITE_API_URL || `http://127.0.0.1:8000/api`
 
+const handleUpdateUser = (updatedUser) => {
+  if (currentUser.value && updatedUser.id === currentUser.value.id) {
+    currentUser.value = updatedUser
+    localStorage.setItem('rundanggeun_user', JSON.stringify(updatedUser))
+  }
+  
+  // globalUsers에서도 갱신
+  const index = globalUsers.value.findIndex(u => u.id === updatedUser.id)
+  if (index !== -1) {
+    globalUsers.value[index] = updatedUser
+  }
+  
+  if (selectedFriend.value && selectedFriend.value.id === updatedUser.id) {
+    selectedFriend.value = updatedUser
+  }
+}
+
+// 화면 전환
 const currentView = ref('discover') // 'discover', 'recommend', 'create', 'detail', 'record', 'history', 'shoes'
 const selectedDifficulty = ref('전체')
 const selectedCourse = ref(null)
@@ -230,6 +248,15 @@ const fetchLiveFriends = async () => {
         const updatedFriend = newData.find(f => f.user_id === liveMapFriend.value.user_id)
         if (updatedFriend) {
           liveMapFriend.value = updatedFriend
+        } else {
+          showLiveMap.value = false
+          snackbar.value = {
+            show: true,
+            text: `🏁 ${liveMapFriend.value.name}님이 러닝을 종료했습니다.`,
+            color: 'primary',
+            friend: null
+          }
+          liveMapFriend.value = null
         }
       }
     }
@@ -708,13 +735,10 @@ const goToCreate = () => {
             offset-x="3"
             offset-y="3"
           >
-            <VAvatar
-              color="primary"
-              size="32"
-              class="cursor-pointer"
-              @click="currentView = 'history'"
-            >
-              <span class="text-caption">{{ currentUser.name[0] }}</span>
+            <!-- 사용자 프로필 (로그인 시) -->
+            <VAvatar v-if="isLoggedIn && currentUser" :color="currentUser.profile_image ? 'transparent' : 'primary'" size="40" class="mr-2" style="cursor: pointer" @click="currentView = 'history'">
+              <img v-if="currentUser.profile_image" :src="currentUser.profile_image" alt="Profile" style="width:100%; height:100%; object-fit:cover;">
+              <span v-else class="text-subtitle-1 text-white">{{ currentUser.name[0] }}</span>
             </VAvatar>
           </VBadge>
         </div>
@@ -864,10 +888,9 @@ const goToCreate = () => {
             :shoes="userShoes"
             :api-url="API_URL"
             :is-me="true"
-            @logout="handleLogout"
-            @refresh-shoes="fetchUserShoes"
             @recommend-route="handleRecommendRoute"
             @delete-record="handleDeleteRecord"
+            @update-user="handleUpdateUser"
           />
         </div>
       </VContainer>
@@ -897,6 +920,7 @@ const goToCreate = () => {
             @remove-friend="handleRemoveFriend"
             @recommend-route="handleRecommendRoute"
             @delete-record="handleDeleteRecord"
+            @update-user="handleUpdateUser"
           />
         </VCardText>
       </VCard>

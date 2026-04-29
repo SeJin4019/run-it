@@ -13,6 +13,7 @@ class User(Base):
     region = Column(String, nullable=True)
     friends = Column(JSON, default=[]) # 친구 ID 리스트 저장
     last_seen = Column(DateTime, default=datetime.datetime.utcnow)
+    profile_image = Column(String, nullable=True)
 
     courses = relationship("Course", back_populates="author")
     records = relationship("Record", back_populates="user")

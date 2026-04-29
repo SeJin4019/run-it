@@ -121,16 +121,26 @@ const startRunning = () => {
 
         if (timeDeltaMin > 0) {
           const speedMetersPerMin = distDeltaMeters / timeDeltaMin
-          let calcCadence = Math.round(speedMetersPerMin / 0.9) // 평균 보폭 0.9m 가정
+          const speedMetersPerSec = speedMetersPerMin / 60
           
-          if (calcCadence < 100) calcCadence = 0 // 걷거나 멈춘 경우
-          if (calcCadence > 220) calcCadence = 220 // 최대치 제한
+          // 러닝 케이던스 계산 (속도 기반 추정)
+          // 속도가 너무 낮으면(걷기 이하) 0으로 처리
+          let calcCadence = 0
+          if (speedMetersPerSec > 1.5) { // 약 5.4km/h 이상일 때만 러닝으로 간주
+            // 속도에 따른 가변 보폭 가정 (속도가 빠를수록 보폭이 커짐)
+            // 보통 160~190 spm 사이가 일반적
+            const estimatedStride = 0.7 + (speedMetersPerSec * 0.1) // 속도에 따라 0.8m ~ 1.2m 가변
+            calcCadence = Math.round(speedMetersPerMin / estimatedStride)
+          }
+          
+          if (calcCadence < 120) calcCadence = 0 // 최소 케이던스 제한
+          if (calcCadence > 210) calcCadence = 210 // 최대 케이던스 제한
 
           if (cadence.value === 0 || calcCadence === 0) {
             cadence.value = calcCadence
           } else {
-            // 부드러운 전환을 위한 보간
-            cadence.value = Math.round((cadence.value * 0.7) + (calcCadence * 0.3))
+            // 부드러운 전환을 위한 보간 (필터링 강화)
+            cadence.value = Math.round((cadence.value * 0.8) + (calcCadence * 0.2))
           }
         }
       } else {
@@ -152,8 +162,9 @@ const startRunning = () => {
 
         const { latitude, longitude, accuracy } = position.coords
 
-        // GPS 정확도가 80m 이상으로 떨어지면 완전히 튀는 위치로 간주하고 무시 (iOS 초기 연결 허용)
-        if (accuracy && accuracy > 80) return
+        // GPS 정확도 필터링 강화 (30m 이상은 무시, 초기 50m 허용)
+        const accuracyThreshold = currentPath.value.length < 5 ? 50 : 30
+        if (accuracy && accuracy > accuracyThreshold) return
 
         const newPos = [latitude, longitude]
 
@@ -165,8 +176,12 @@ const startRunning = () => {
           const p2 = L.latLng(newPos[0], newPos[1])
           const distMeters = p1.distanceTo(p2)
 
-          // 너무 작은 움직임(GPS 오차, 예: 2m 이하)은 무시
-          if (distMeters > 2) {
+          // 비정상적인 도약 방지 (건물 가로지르기 등 GPS 튐 현상)
+          // 사람이 1초에 12m(시속 43km) 이상 이동하는 것은 불가능으로 간주
+          if (distMeters > 15) return 
+
+          // 너무 작은 움직임(GPS 오차, 예: 3m 이하)은 무시
+          if (distMeters > 3) {
             distance.value += distMeters / 1000 // km로 변환하여 누적
             currentPath.value.push(newPos)
             updateMap()

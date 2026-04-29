@@ -8,6 +8,7 @@ class UserBase(BaseModel):
     name: str
     region: Optional[str] = None
     last_seen: Optional[datetime] = None
+    profile_image: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
@@ -15,6 +16,9 @@ class UserCreate(UserBase):
 class UserLogin(BaseModel):
     email: str
     password: str
+
+class ProfileImageUpdate(BaseModel):
+    profile_image: str
 
 class User(UserBase):
     id: int

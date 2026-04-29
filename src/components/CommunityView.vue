@@ -107,8 +107,9 @@ const openMap = (friend) => {
         class="rounded-xl border pa-4 mb-3"
       >
         <div class="d-flex align-center">
-          <VAvatar color="primary-lighten-4" size="40" class="mr-3">
-            <span class="text-caption font-weight-bold">{{ req.from_user_name[0] }}</span>
+          <VAvatar :color="req.from_user_profile_image ? 'transparent' : 'primary-lighten-4'" size="40" class="mr-3">
+            <img v-if="req.from_user_profile_image" :src="req.from_user_profile_image" alt="Profile" style="width:100%; height:100%; object-fit:cover;">
+            <span v-else class="text-caption font-weight-bold">{{ req.from_user_name[0] }}</span>
           </VAvatar>
           <div class="flex-grow-1">
             <div class="font-weight-bold">{{ req.from_user_name }}</div>
@@ -165,8 +166,9 @@ const openMap = (friend) => {
             offset-x="2"
             offset-y="2"
           >
-            <VAvatar color="primary-lighten-1" size="48" class="mr-4">
-              <span class="text-h6 text-white font-weight-bold">{{ friend.name[0] }}</span>
+            <VAvatar :color="friend.profile_image ? 'transparent' : 'primary-lighten-1'" size="48" class="mr-4">
+              <img v-if="friend.profile_image" :src="friend.profile_image" alt="Profile" style="width:100%; height:100%; object-fit:cover;">
+              <span v-else class="text-h6 text-white font-weight-bold">{{ friend.name[0] }}</span>
             </VAvatar>
           </VBadge>
           <div class="flex-grow-1">
@@ -224,8 +226,9 @@ const openMap = (friend) => {
             offset-x="4"
             offset-y="4"
           >
-            <VAvatar color="grey-lighten-3" size="64" class="mb-3">
-              <span class="text-h5 text-primary font-weight-bold">{{ user.name[0] }}</span>
+            <VAvatar :color="user.profile_image ? 'transparent' : 'grey-lighten-3'" size="64" class="mb-3">
+              <img v-if="user.profile_image" :src="user.profile_image" alt="Profile" style="width:100%; height:100%; object-fit:cover;">
+              <span v-else class="text-h5 text-primary font-weight-bold">{{ user.name[0] }}</span>
             </VAvatar>
           </VBadge>
           <div class="font-weight-bold text-truncate mb-1">{{ user.name }}</div>

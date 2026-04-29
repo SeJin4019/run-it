@@ -82,12 +82,15 @@ onMounted(fetchShoes)
 
 <template>
   <div class="shoe-management animate-fade-in">
-    <div class="section-header d-flex align-center justify-space-between mb-6">
-      <div>
+    <div class="section-header d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between mb-6">
+      <div class="mb-3 mb-sm-0 mr-sm-4">
         <h2 class="text-h6 font-weight-bold">장비 관리</h2>
-        <p class="text-caption text-grey">런닝화의 마일리지를 체크하고 교체 시기를 관리하세요</p>
+        <p class="text-caption text-grey" style="word-break: keep-all;">런닝화의 마일리지를 체크하고 교체 시기를 관리하세요</p>
       </div>
-      <VBtn color="primary" variant="flat" prepend-icon="mdi-plus" @click="showAddDialog = true">
+      <VBtn color="primary" variant="flat" prepend-icon="mdi-plus" @click="showAddDialog = true" width="100%" class="d-sm-none">
+        신발 등록
+      </VBtn>
+      <VBtn color="primary" variant="flat" prepend-icon="mdi-plus" @click="showAddDialog = true" class="d-none d-sm-flex">
         신발 등록
       </VBtn>
     </div>
@@ -98,11 +101,11 @@ onMounted(fetchShoes)
         <VCard border flat class="rounded-xl shoe-card" :class="{ 'inactive-shoe': !shoe.is_active }">
           <VCardText>
             <div class="d-flex justify-space-between align-start mb-4">
-              <div>
+              <div class="flex-grow-1 pr-2 overflow-hidden">
                 <div class="text-overline text-primary font-weight-bold">{{ shoe.brand }}</div>
-                <h3 class="text-h6 font-weight-bold">{{ shoe.name }}</h3>
+                <h3 class="text-h6 font-weight-bold text-truncate">{{ shoe.name }}</h3>
               </div>
-              <VChip :color="shoe.is_active ? 'success' : 'grey'" size="small">
+              <VChip :color="shoe.is_active ? 'success' : 'grey'" size="small" class="flex-shrink-0">
                 {{ shoe.is_active ? '사용 중' : '은퇴' }}
               </VChip>
             </div>
@@ -151,7 +154,7 @@ onMounted(fetchShoes)
     </div>
 
     <!-- 등록 다이얼로그 -->
-    <VDialog v-model="showAddDialog" max-width="400">
+    <VDialog v-model="showAddDialog" max-width="400" width="100%">
       <VCard class="rounded-xl pa-4">
         <VCardTitle class="px-0 font-weight-bold">새 신발 등록</VCardTitle>
         <VCardText class="px-0">

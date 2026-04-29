@@ -40,7 +40,12 @@ const initMap = () => {
   
   map = L.map(mapContainer.value, {
     zoomControl: !props.readOnly,
-    attributionControl: false
+    attributionControl: false,
+    dragging: !props.readOnly,
+    touchZoom: !props.readOnly,
+    scrollWheelZoom: !props.readOnly,
+    doubleClickZoom: !props.readOnly,
+    boxZoom: !props.readOnly
   }).setView(center, 14)
 
   // 한국 국토교통부 제공 VWorld 타일 (한국 정서에 맞는 지도 스타일)

@@ -21,7 +21,7 @@ const props = defineProps({
   apiUrl: String
 })
 
-const emit = defineEmits(['logout', 'add-friend', 'remove-friend', 'recommend-route', 'delete-record'])
+const emit = defineEmits(['logout', 'add-friend', 'remove-friend', 'recommend-route', 'delete-record', 'update-user'])
 
 const stats = computed(() => {
   const totalKm = props.records.reduce((acc, rec) => acc + parseFloat(rec.distance), 0)
@@ -68,15 +68,94 @@ const getShoeName = (shoeId) => {
   const shoe = props.shoes.find(s => s.id === shoeId)
   return shoe ? `${shoe.brand} ${shoe.name}` : '알 수 없음'
 }
+
+const fileInput = ref(null)
+const isUploading = ref(false)
+
+const handleProfileUpload = (e) => {
+  if (!props.isMe) return
+  
+  const file = e.target.files[0]
+  if (!file) return
+  
+  isUploading.value = true
+  const reader = new FileReader()
+  
+  reader.onload = (event) => {
+    const img = new Image()
+    img.src = event.target.result
+    img.onload = () => {
+      // 300x300 리사이징 (중앙 크롭)
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      const size = 300
+      canvas.width = size
+      canvas.height = size
+      
+      const minDimension = Math.min(img.width, img.height)
+      const startX = (img.width - minDimension) / 2
+      const startY = (img.height - minDimension) / 2
+      
+      ctx.drawImage(img, startX, startY, minDimension, minDimension, 0, 0, size, size)
+      const resizedBase64 = canvas.toDataURL('image/jpeg', 0.8)
+      
+      updateProfileImage(resizedBase64)
+    }
+  }
+  reader.readAsDataURL(file)
+}
+
+const updateProfileImage = async (base64Str) => {
+  try {
+    const res = await fetch(`${props.apiUrl}/users/${props.user.id}/profile-image`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile_image: base64Str })
+    })
+    
+    if (res.ok) {
+      const updatedUser = await res.json()
+      emit('update-user', updatedUser)
+    }
+  } catch (e) {
+    console.error('프로필 변경 실패:', e)
+  } finally {
+    isUploading.value = false
+    if (fileInput.value) fileInput.value.value = ''
+  }
+}
 </script>
 
 <template>
   <div class="history-container animate-fade-in">
     <!-- 유저 프로필 섹션 -->
     <div class="profile-section d-flex align-center mb-8 pa-4 rounded-xl bg-white border">
-      <VAvatar color="primary" size="64" class="mr-4">
-        <span class="text-h5">{{ user.name[0] }}</span>
-      </VAvatar>
+      <div 
+        class="position-relative" 
+        :style="isMe ? 'cursor: pointer' : ''"
+        @click="isMe ? $refs.fileInput.click() : null"
+      >
+        <VAvatar :color="user.profile_image ? 'transparent' : 'primary'" size="64" class="mr-4">
+          <img v-if="user.profile_image" :src="user.profile_image" alt="Profile" style="width:100%; height:100%; object-fit:cover;">
+          <span v-else class="text-h5 text-white">{{ user.name[0] }}</span>
+        </VAvatar>
+        <VBadge
+          v-if="isMe"
+          icon="mdi-camera"
+          color="secondary"
+          offset-x="22"
+          offset-y="18"
+          class="position-absolute"
+          style="right: 0; bottom: 0; pointer-events: none;"
+        />
+        <input 
+          ref="fileInput"
+          type="file" 
+          accept="image/*" 
+          @change="handleProfileUpload" 
+          hidden
+        >
+      </div>
       <div>
         <h3 class="text-h6 font-weight-black">{{ user.name }}님</h3>
         <p class="text-caption text-grey">{{ user.email }}</p>
@@ -249,9 +328,9 @@ const getShoeName = (shoeId) => {
             </VCard>
           </div>
 
-          <!-- 공유 버튼 -->
+          <!-- 공유 버튼 (나의 기록인 경우에만 표시) -->
           <VBtn 
-            v-if="selectedRecord.path && selectedRecord.path.length > 0"
+            v-if="isMe && selectedRecord.path && selectedRecord.path.length > 0"
             color="primary" 
             variant="elevated" 
             block 

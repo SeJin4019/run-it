@@ -25,7 +25,7 @@ const initMap = () => {
   map = L.map(mapContainer.value, {
     zoomControl: false,
     attributionControl: false
-  }).setView(initialPos, 15)
+  }).setView(initialPos, 18)
 
   L.tileLayer('https://xdworld.vworld.kr/2d/Base/service/{z}/{x}/{y}.png', {
     maxZoom: 19,
