@@ -19,7 +19,7 @@ try:
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS splits JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS friends JSON DEFAULT '[]'::json;"))
-        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen DATETIME;"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP;"))
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS comments JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS liked_users JSON DEFAULT '[]'::json;"))
