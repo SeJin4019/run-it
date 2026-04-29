@@ -956,17 +956,32 @@ const goToCreate = () => {
         
         <VCardText class="pa-0" style="position: relative;">
           <!-- 실시간 스탯 바 -->
-          <div class="live-stats-overlay px-4 py-3 bg-white-glass d-flex justify-space-around align-center">
-            <div class="text-center">
-              <div class="text-caption text-grey">거리</div>
-              <div class="text-subtitle-1 font-weight-black">{{ Number(liveMapFriend?.distance || 0).toFixed(2) }} km</div>
+          <div class="live-stats-overlay px-2 py-3 bg-white-glass d-flex justify-space-around align-center">
+            <div class="text-center flex-grow-1">
+              <div class="d-flex align-center justify-center mb-1">
+                <VIcon icon="mdi-map-marker-distance" size="14" color="grey" class="mr-1" />
+                <span class="text-caption text-grey font-weight-bold">거리</span>
+              </div>
+              <div class="text-subtitle-1 font-weight-black">{{ Number(liveMapFriend?.distance || 0).toFixed(2) }}<small class="ml-1 text-grey font-weight-medium">km</small></div>
             </div>
-            <div class="text-center border-x border-grey-lighten-3 px-4">
-              <div class="text-caption text-grey">시간</div>
+            
+            <div class="stats-divider"></div>
+
+            <div class="text-center flex-grow-1">
+              <div class="d-flex align-center justify-center mb-1">
+                <VIcon icon="mdi-clock-outline" size="14" color="grey" class="mr-1" />
+                <span class="text-caption text-grey font-weight-bold">시간</span>
+              </div>
               <div class="text-subtitle-1 font-weight-black">{{ liveMapFriend?.time || '00:00:00' }}</div>
             </div>
-            <div class="text-center">
-              <div class="text-caption text-grey">페이스</div>
+
+            <div class="stats-divider"></div>
+
+            <div class="text-center flex-grow-1">
+              <div class="d-flex align-center justify-center mb-1">
+                <VIcon icon="mdi-speedometer" size="14" color="grey" class="mr-1" />
+                <span class="text-caption text-grey font-weight-bold">페이스</span>
+              </div>
               <div class="text-subtitle-1 font-weight-black text-primary">{{ liveMapFriend?.pace || "0'00\"" }}</div>
             </div>
           </div>
@@ -1172,6 +1187,11 @@ const goToCreate = () => {
 .bg-white-glass {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(10px);
+}
+.stats-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.05);
 }
 .live-pulse-container {
   position: relative;
