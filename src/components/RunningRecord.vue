@@ -34,6 +34,8 @@ const cadenceDistanceHistory = ref([]) // 5-second window history for real-time 
 const splits = ref([])
 const lastSplitDistance = ref(0)
 const lastSplitTime = ref(0)
+const accumulatedTime = ref(0) // 이전 세션까지의 누적 시간 (초)
+const lastStartTime = ref(0) // 마지막으로 '시작/재개' 버튼을 누른 시점 (ms)
 
 // 주머니 모드 및 Wake Lock 관련
 const isPocketMode = ref(false)
@@ -149,11 +151,16 @@ const startRunning = () => {
   }
 
   isRunning.value = true
+  lastStartTime.value = Date.now() // 시작 시각 기록
   cadenceDistanceHistory.value = [] // Reset cadence history when starting/resuming
   
   // 1. 시간 측정용 타이머 및 실시간 케이던스 계산
   timer.value = setInterval(() => {
-    elapsedTime.value++
+    // 현재 시간과 시작 시각의 차이를 계산하여 '경과 시간' 업데이트 (브라우저 절전 모드 대응)
+    const now = Date.now()
+    const sessionElapsed = Math.floor((now - lastStartTime.value) / 1000)
+    elapsedTime.value = accumulatedTime.value + sessionElapsed
+
     if (isRunning.value) {
       cadenceDistanceHistory.value.push({ t: elapsedTime.value, d: distance.value })
       if (cadenceDistanceHistory.value.length > 5) {
@@ -357,6 +364,10 @@ const initMap = () => {
 }
 
 const pauseRunning = () => {
+  if (isRunning.value) {
+    const now = Date.now()
+    accumulatedTime.value += Math.floor((now - lastStartTime.value) / 1000)
+  }
   isRunning.value = false
   cadence.value = 0
   cadenceDistanceHistory.value = []
@@ -372,6 +383,11 @@ const pauseRunning = () => {
 }
 
 const stopRunning = async () => {
+  if (isRunning.value) {
+    const now = Date.now()
+    accumulatedTime.value += Math.floor((now - lastStartTime.value) / 1000)
+    elapsedTime.value = accumulatedTime.value
+  }
   isRunning.value = false
   cadenceDistanceHistory.value = []
   if (timer.value) {
