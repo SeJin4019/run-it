@@ -131,17 +131,22 @@ const updateProfileImage = async (base64Str) => {
     <!-- 유저 프로필 섹션 -->
     <div class="profile-section d-flex align-center mb-8 pa-4 rounded-xl bg-white border">
       <div class="position-relative mr-4">
-        <VAvatar :color="user.profile_image ? 'transparent' : 'primary'" size="64">
+        <VAvatar 
+          :color="user.profile_image ? 'grey-lighten-4' : 'primary'" 
+          size="72"
+          class="border-sm"
+          style="border: 2px solid #eee !important;"
+        >
           <img v-if="user.profile_image" :src="user.profile_image" alt="Profile" style="width:100%; height:100%; object-fit:cover;">
-          <span v-else class="text-h5 text-white">{{ user.name[0] }}</span>
+          <span v-else class="text-h5 text-white font-weight-bold">{{ user.name[0] }}</span>
         </VAvatar>
         <VBtn
           v-if="isMe"
           icon="mdi-camera"
-          color="secondary"
+          color="primary"
           size="x-small"
-          class="position-absolute"
-          style="bottom: -5px; right: -5px; width: 24px; height: 24px; border: 2px solid white; z-index: 2;"
+          class="position-absolute elevation-4"
+          style="bottom: 2px; right: 2px; width: 26px; height: 26px; border: 2px solid white; z-index: 2;"
           @click.stop="$refs.fileInput.click()"
         />
         <input 
@@ -187,27 +192,25 @@ const updateProfileImage = async (base64Str) => {
       </template>
     </div>
 
-    <!-- 통계 요약 섹션 -->
-    <VRow class="mb-8">
-      <VCol cols="4">
-        <VCard flat class="rounded-xl border text-center pa-4">
+    <!-- 통계 요약 섹션 (가로 한 줄 배치) -->
+    <VCard flat class="rounded-xl border pa-4 mb-8 bg-grey-lighten-5">
+      <div class="d-flex justify-space-around align-center text-center">
+        <div class="flex-grow-1">
           <div class="text-caption text-grey mb-1">총 거리</div>
-          <div class="text-h6 font-weight-black text-primary">{{ stats.totalKm }}km</div>
-        </VCard>
-      </VCol>
-      <VCol cols="4">
-        <VCard flat class="rounded-xl border text-center pa-4">
+          <div class="text-body-1 font-weight-black text-primary">{{ stats.totalKm }}km</div>
+        </div>
+        <VDivider vertical class="mx-2" style="height: 30px;" />
+        <div class="flex-grow-1">
           <div class="text-caption text-grey mb-1">러닝 횟수</div>
-          <div class="text-h6 font-weight-black text-primary">{{ stats.totalRuns }}회</div>
-        </VCard>
-      </VCol>
-      <VCol cols="4">
-        <VCard flat class="rounded-xl border text-center pa-4">
+          <div class="text-body-1 font-weight-black text-primary">{{ stats.totalRuns }}회</div>
+        </div>
+        <VDivider vertical class="mx-2" style="height: 30px;" />
+        <div class="flex-grow-1">
           <div class="text-caption text-grey mb-1">평균 거리</div>
-          <div class="text-h6 font-weight-black text-primary">{{ stats.avgKm }}km</div>
-        </VCard>
-      </VCol>
-    </VRow>
+          <div class="text-body-1 font-weight-black text-primary">{{ stats.avgKm }}km</div>
+        </div>
+      </div>
+    </VCard>
 
     <!-- 신발 관리 섹션 (내 정보 탭에 통합) -->
     <div v-if="isMe" class="shoes-section mb-8">

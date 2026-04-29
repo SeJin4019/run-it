@@ -24,12 +24,11 @@ const emit = defineEmits(['back', 'update-comments', 'toggle-like', 'filter-loca
 
 const isAuthor = computed(() => {
   if (!props.currentUser) return false
-  if (!props.course.authorId) return true // 기존 코스 (authorId 없음) - 로그인 사용자 삭제 가능
-  return props.course.authorId === props.currentUser.id
+  return props.course.author_id === props.currentUser.id
 })
 
 const authorName = computed(() => props.course.author_name || '익명')
-const isMyCourse = computed(() => props.currentUser && props.course.authorId === props.currentUser.id)
+const isMyCourse = computed(() => props.currentUser && props.course.author_id === props.currentUser.id)
 
 const newComment = ref('')
 const comments = ref(props.course.comments || [])

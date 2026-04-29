@@ -25,12 +25,11 @@ const emit = defineEmits(['toggle-like', 'filter-location', 'delete-course'])
 // 로그인한 유저이 작성자이거나, 작성자 정보가 없는 (=이전 데이터) 코스인 경우 삭제 허용
 const isAuthor = computed(() => {
   if (!props.currentUser) return false
-  if (!props.course.authorId) return true // 기존 코스 (작성자 정보 없음) - 로그인 사용자라면 삭제 가능
-  return props.course.authorId === props.currentUser.id
+  return props.course.author_id === props.currentUser.id
 })
 
 const authorName = computed(() => props.course.author_name || '익명')
-const isMyCourse = computed(() => props.currentUser && props.course.authorId === props.currentUser.id)
+const isMyCourse = computed(() => props.currentUser && props.course.author_id === props.currentUser.id)
 
 const toggleLike = (e) => {
   e.stopPropagation()

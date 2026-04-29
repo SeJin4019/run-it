@@ -884,6 +884,7 @@ const goToCreate = () => {
             @accept-request="handleAcceptRequest"
             @decline-request="handleDeclineRequest"
             @open-live-map="openFriendMap"
+            @refresh="refreshData"
           />
         </div>
 
