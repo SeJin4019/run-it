@@ -339,7 +339,7 @@ const startLiveFriendsPolling = () => {
   setInterval(refreshData, 30000)
   
   if (liveFriendsTimer.value) clearInterval(liveFriendsTimer.value)
-  liveFriendsTimer.value = setInterval(fetchLiveFriends, 3000) // 3초마다 갱신 (실시간성 강화)
+  liveFriendsTimer.value = setInterval(fetchLiveFriends, 2000) // 2초마다 갱신 (실시간성 극대화)
 }
 
 /**
@@ -744,7 +744,6 @@ const goToCreate = () => {
             로그인
           </VBtn>
           <VBadge
-            v-else
             dot
             color="success"
             location="bottom right"

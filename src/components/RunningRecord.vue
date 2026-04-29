@@ -244,6 +244,7 @@ const startRunning = () => {
             distance.value += distMeters / 1000 // km로 변환하여 누적
             currentPath.value.push(newPos)
             updateMap()
+            sendLiveLocation(true) // 위치가 바뀔 때마다 즉시 서버 전송 (실시간성 극대화)
 
             // 구간 페이스 체크 (1km 마다)
             const currentKm = Math.floor(distance.value)
