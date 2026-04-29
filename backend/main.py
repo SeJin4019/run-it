@@ -15,7 +15,7 @@ try:
         from sqlalchemy import text
         conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS distance FLOAT DEFAULT 0.0;"))
-        conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS pace VARCHAR DEFAULT '0''00\"';"))
+        conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS pace VARCHAR DEFAULT '00:00';"))
         conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS time VARCHAR DEFAULT '00:00:00';"))
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS shoe_id INTEGER;"))
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS cadence INTEGER DEFAULT 0;"))
