@@ -19,8 +19,10 @@ try:
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS splits JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS friends JSON DEFAULT '[]'::json;"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen DATETIME;"))
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS comments JSON DEFAULT '[]'::json;"))
+        conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS liked_users JSON DEFAULT '[]'::json;"))
 except Exception as e:
     print("Migration Error:", e)
 
@@ -194,6 +196,14 @@ def remove_friend(user_id: int, friend_id: int, db: Session = Depends(get_db)):
     
     return {"message": "친구 삭제가 완료되었습니다."}
 
+@app.post("/api/users/heartbeat")
+def user_heartbeat(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user:
+        user.last_seen = datetime.datetime.utcnow()
+        db.commit()
+    return {"status": "ok"}
+
 # --- 코스 API ---
 @app.get("/api/courses", response_model=List[schemas.Course])
 def get_courses(db: Session = Depends(get_db)):
@@ -216,6 +226,22 @@ def create_course(course: schemas.CourseCreate, user_id: int, db: Session = Depe
     user = db.query(models.User).filter(models.User.id == user_id).first()
     db_course.author_name = user.name if user else "익명"
     return db_course
+
+@app.post("/api/courses/{course_id}/like")
+def toggle_like_course(course_id: int, user_id: int, db: Session = Depends(get_db)):
+    course = db.query(models.Course).filter(models.Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="코스를 찾을 수 없습니다.")
+    
+    current_likes = list(course.liked_users) if course.liked_users else []
+    if user_id in current_likes:
+        current_likes.remove(user_id)
+    else:
+        current_likes.append(user_id)
+        
+    course.liked_users = current_likes
+    db.commit()
+    return {"liked_users": current_likes}
 
 @app.delete("/api/courses/{course_id}")
 def delete_course(course_id: int, user_id: int, db: Session = Depends(get_db)):

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import HeroSection from './components/HeroSection.vue'
 import CourseCard from './components/CourseCard.vue'
 import CourseFilters from './components/CourseFilters.vue'
@@ -55,6 +55,18 @@ const snackbar = ref({
 
 const courses = ref([])
 
+const updateCourseLikeStates = () => {
+  courses.value = courses.value.map(c => {
+    const likedUsers = c.liked_users || []
+    return {
+      ...c,
+      liked_users: likedUsers,
+      likes: likedUsers.length,
+      isLiked: isLoggedIn.value && currentUser.value ? likedUsers.includes(currentUser.value.id) : false
+    }
+  })
+}
+
 // 현재 유저의 기록 계산
 const myRecords = computed(() => {
   if (!currentUser.value) return []
@@ -80,6 +92,7 @@ onMounted(async () => {
     const res = await fetch(`${API_URL}/courses`)
     if (res.ok) {
       courses.value = await res.json()
+      updateCourseLikeStates()
     }
   } catch (e) {
     console.error('코스 로딩 실패:', e)
@@ -107,6 +120,7 @@ onMounted(async () => {
      // 구버전(만료시간 없는) 데이터 호환성
       currentUser.value = JSON.parse(savedUser)
       isLoggedIn.value = true
+      updateCourseLikeStates()
       fetchUserRecords()
   }
 
@@ -119,7 +133,52 @@ onMounted(async () => {
   } catch (e) {
     console.error('유저 로딩 실패:', e)
   }
+
+  // 온라인 상태(하트비트) 시작
+  sendHeartbeat()
+  heartbeatTimer = setInterval(sendHeartbeat, 60000)
 })
+
+let heartbeatTimer = null
+onUnmounted(() => {
+  if (heartbeatTimer) clearInterval(heartbeatTimer)
+})
+
+const sendHeartbeat = async () => {
+  if (!isLoggedIn.value || !currentUser.value) return
+  try {
+    await fetch(`${API_URL}/users/heartbeat?user_id=${currentUser.value.id}`, { method: 'POST' })
+  } catch (e) {}
+}
+
+const refreshData = async () => {
+  try {
+    const res = await fetch(`${API_URL}/courses`)
+    if (res.ok) {
+      courses.value = await res.json()
+      updateCourseLikeStates()
+    }
+    
+    const userRes = await fetch(`${API_URL}/users`)
+    if (userRes.ok) globalUsers.value = await userRes.json()
+
+    if (isLoggedIn.value && currentUser.value) {
+      await fetchUserRecords()
+      await fetchUserShoes()
+      if (typeof fetchLiveFriends === 'function') fetchLiveFriends()
+      if (typeof fetchPendingRequests === 'function') fetchPendingRequests()
+    }
+
+    snackbar.value = {
+      show: true,
+      text: '데이터를 최신 상태로 새로고침했습니다.',
+      color: 'success',
+      friend: null
+    }
+  } catch (e) {
+    console.error('새로고침 실패:', e)
+  }
+}
 
 const fetchUserRecords = async () => {
   if (!currentUser.value) return
@@ -314,11 +373,25 @@ const handleFilterLocation = (location) => {
 /**
  * 좋아요 토글 처리 (영구 저장)
  */
-const handleToggleLike = (courseId) => {
-  const course = courses.value.find(c => c.id === courseId)
-  if (course) {
-    course.isLiked = !course.isLiked
-    course.likes = (course.likes || 0) + (course.isLiked ? 1 : -1)
+const handleToggleLike = async (courseId) => {
+  if (!isLoggedIn.value || !currentUser.value) {
+    alert("로그인이 필요한 기능입니다.")
+    return
+  }
+  
+  try {
+    const res = await fetch(`${API_URL}/courses/${courseId}/like?user_id=${currentUser.value.id}`, { method: 'POST' })
+    if (res.ok) {
+      const data = await res.json()
+      const course = courses.value.find(c => c.id === courseId)
+      if (course) {
+        course.liked_users = data.liked_users || []
+        course.likes = course.liked_users.length
+        course.isLiked = course.liked_users.includes(currentUser.value.id)
+      }
+    }
+  } catch (e) {
+    console.error('좋아요 토글 실패', e)
   }
 }
 
@@ -373,6 +446,7 @@ const handleLogin = (authResponse) => {
   localStorage.setItem('rundanggeun_user', JSON.stringify(authResponse.user))
   localStorage.setItem('rundanggeun_expiry', expiryTime.toString())
   
+  updateCourseLikeStates()
   fetchUserRecords()
   fetchUserShoes()
   startLiveFriendsPolling()
@@ -387,6 +461,7 @@ const handleLogout = (requireConfirm = true) => {
   }
   isLoggedIn.value = false
   currentUser.value = null
+  updateCourseLikeStates()
   localStorage.removeItem('rundanggeun_token')
   localStorage.removeItem('rundanggeun_user')
   localStorage.removeItem('rundanggeun_expiry')
@@ -614,25 +689,34 @@ const goToCreate = () => {
       <VContainer class="d-flex align-center">
         <div style="width: 80px"></div> <!-- Spacer for symmetry -->
         <VAppBarTitle class="text-center font-weight-black text-primary">런릿 (Run-it)</VAppBarTitle>
-        <div style="width: 80px" class="text-right">
+        <div style="width: 100px" class="text-right d-flex align-center justify-end">
+          <VBtn icon="mdi-refresh" variant="text" size="small" class="mr-2 text-grey-darken-1" @click="refreshData" />
           <VBtn
             v-if="!isLoggedIn"
             variant="text"
             color="primary"
-            class="font-weight-bold"
+            class="font-weight-bold pa-0"
             @click="showAuthDialog = true"
           >
             로그인
           </VBtn>
-          <VAvatar
+          <VBadge
             v-else
-            color="primary"
-            size="32"
-            class="cursor-pointer"
-            @click="currentView = 'history'"
+            dot
+            color="success"
+            location="bottom right"
+            offset-x="3"
+            offset-y="3"
           >
-            <span class="text-caption">{{ currentUser.name[0] }}</span>
-          </VAvatar>
+            <VAvatar
+              color="primary"
+              size="32"
+              class="cursor-pointer"
+              @click="currentView = 'history'"
+            >
+              <span class="text-caption">{{ currentUser.name[0] }}</span>
+            </VAvatar>
+          </VBadge>
         </div>
       </VContainer>
     </VAppBar>

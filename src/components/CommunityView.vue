@@ -43,6 +43,14 @@ const getLiveStatus = (userId) => {
   return props.liveFriends.find(f => f.user_id === userId)
 }
 
+const isOnline = (user) => {
+  if (!user.last_seen) return false
+  const lastSeenStr = user.last_seen.endsWith('Z') ? user.last_seen : user.last_seen + 'Z'
+  const lastSeen = new Date(lastSeenStr)
+  const now = new Date()
+  return (now - lastSeen) < 3 * 60 * 1000 // 3분 이내 접속
+}
+
 const openMap = (friend) => {
   const status = getLiveStatus(friend.id)
   if (status) {
@@ -149,9 +157,18 @@ const openMap = (friend) => {
         @click="emit('open-profile', friend)"
       >
         <div class="d-flex align-center">
-          <VAvatar color="primary-lighten-1" size="48" class="mr-4">
-            <span class="text-h6 text-white font-weight-bold">{{ friend.name[0] }}</span>
-          </VAvatar>
+          <VBadge
+            :model-value="isOnline(friend)"
+            dot
+            color="success"
+            location="bottom right"
+            offset-x="2"
+            offset-y="2"
+          >
+            <VAvatar color="primary-lighten-1" size="48" class="mr-4">
+              <span class="text-h6 text-white font-weight-bold">{{ friend.name[0] }}</span>
+            </VAvatar>
+          </VBadge>
           <div class="flex-grow-1">
             <div class="d-flex align-center">
               <div class="font-weight-bold">{{ friend.name }}</div>
@@ -199,9 +216,18 @@ const openMap = (friend) => {
           width="140"
           @click="emit('open-profile', user)"
         >
-          <VAvatar color="grey-lighten-3" size="64" class="mb-3">
-            <span class="text-h5 text-primary font-weight-bold">{{ user.name[0] }}</span>
-          </VAvatar>
+          <VBadge
+            :model-value="isOnline(user)"
+            dot
+            color="success"
+            location="bottom right"
+            offset-x="4"
+            offset-y="4"
+          >
+            <VAvatar color="grey-lighten-3" size="64" class="mb-3">
+              <span class="text-h5 text-primary font-weight-bold">{{ user.name[0] }}</span>
+            </VAvatar>
+          </VBadge>
           <div class="font-weight-bold text-truncate mb-1">{{ user.name }}</div>
           <VBtn 
             size="small" 

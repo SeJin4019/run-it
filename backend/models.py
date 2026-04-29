@@ -12,6 +12,7 @@ class User(Base):
     name = Column(String)
     region = Column(String, nullable=True)
     friends = Column(JSON, default=[]) # 친구 ID 리스트 저장
+    last_seen = Column(DateTime, default=datetime.datetime.utcnow)
 
     courses = relationship("Course", back_populates="author")
     records = relationship("Record", back_populates="user")
@@ -33,6 +34,7 @@ class Course(Base):
     author_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     comments = Column(JSON, default=list)
+    liked_users = Column(JSON, default=list)
 
     author = relationship("User", back_populates="courses")
 

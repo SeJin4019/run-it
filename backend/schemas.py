@@ -7,6 +7,7 @@ class UserBase(BaseModel):
     email: str
     name: str
     region: Optional[str] = None
+    last_seen: Optional[datetime] = None
 
 class UserCreate(UserBase):
     password: str
@@ -34,6 +35,7 @@ class CourseBase(BaseModel):
     image: Optional[str] = None
     path: List[List[float]]
     comments: Optional[List[dict]] = []
+    liked_users: Optional[List[int]] = []
 
 class CourseCreate(CourseBase):
     pass
