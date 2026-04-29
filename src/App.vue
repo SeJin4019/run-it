@@ -245,9 +245,11 @@ const fetchLiveFriends = async () => {
       
       // 열려 있는 실시간 지도가 있다면, 갱신된 새 데이터 참조로 교체해주어야 Vue가 반응하여 즉각 그려줌
       if (showLiveMap.value && liveMapFriend.value) {
-        const updatedFriend = newData.find(f => f.user_id === liveMapFriend.value.user_id)
+        const targetId = liveMapFriend.value.user_id || liveMapFriend.value.id
+        const updatedFriend = newData.find(f => (f.user_id || f.id) === targetId)
         if (updatedFriend) {
-          liveMapFriend.value = updatedFriend
+          // 객체 전체를 교체하여 모든 스탯(거리, 시간, 페이스)이 반응형으로 업데이트되도록 함
+          liveMapFriend.value = { ...updatedFriend }
         } else {
           showLiveMap.value = false
           snackbar.value = {
@@ -337,7 +339,7 @@ const startLiveFriendsPolling = () => {
   setInterval(refreshData, 30000)
   
   if (liveFriendsTimer.value) clearInterval(liveFriendsTimer.value)
-  liveFriendsTimer.value = setInterval(fetchLiveFriends, 5000) // 5초마다 갱신 (실시간성 강화)
+  liveFriendsTimer.value = setInterval(fetchLiveFriends, 3000) // 3초마다 갱신 (실시간성 강화)
 }
 
 /**
