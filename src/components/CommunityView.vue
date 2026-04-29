@@ -16,6 +16,10 @@ const isAdding = ref(false)
 
 const handleAddFriend = () => {
   if (!searchEmail.value) return
+  if (props.currentUser && searchEmail.value.trim().toLowerCase() === props.currentUser.email.toLowerCase()) {
+    alert("자기 자신은 친구로 추가할 수 없습니다.")
+    return
+  }
   emit('add-friend-by-email', searchEmail.value)
   searchEmail.value = ''
 }
