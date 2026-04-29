@@ -174,7 +174,18 @@ const refreshData = async () => {
     }
     
     const userRes = await fetch(`${API_URL}/users`)
-    if (userRes.ok) globalUsers.value = await userRes.json()
+    if (userRes.ok) {
+      const allUsers = await userRes.json()
+      globalUsers.value = allUsers
+      
+      // 내 정보(친구 목록 등) 동기화
+      if (currentUser.value) {
+        const latestMe = allUsers.find(u => u.id === currentUser.value.id)
+        if (latestMe) {
+          handleUpdateUser(latestMe)
+        }
+      }
+    }
 
     if (isLoggedIn.value && currentUser.value) {
       await fetchUserRecords()

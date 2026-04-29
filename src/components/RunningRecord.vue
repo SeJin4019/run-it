@@ -35,6 +35,51 @@ const splits = ref([])
 const lastSplitDistance = ref(0)
 const lastSplitTime = ref(0)
 
+// 주머니 모드 및 Wake Lock 관련
+const isPocketMode = ref(false)
+const unlockValue = ref(0)
+let wakeLock = null
+
+const requestWakeLock = async () => {
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen')
+      console.log('Wake Lock 활성화')
+    } catch (err) {
+      console.warn('Wake Lock 요청 실패:', err)
+    }
+  }
+}
+
+const releaseWakeLock = () => {
+  if (wakeLock) {
+    wakeLock.release()
+    wakeLock = null
+    console.log('Wake Lock 해제')
+  }
+}
+
+const togglePocketMode = async () => {
+  if (!isPocketMode.value) {
+    await requestWakeLock()
+    isPocketMode.value = true
+    unlockValue.value = 0
+  } else {
+    isPocketMode.value = false
+    releaseWakeLock()
+  }
+}
+
+const handleUnlock = () => {
+  if (unlockValue.value > 80) {
+    isPocketMode.value = false
+    releaseWakeLock()
+    unlockValue.value = 0
+  } else {
+    unlockValue.value = 0
+  }
+}
+
 const formatTimeFromSeconds = (secs) => {
   const m = Math.floor(secs / 60)
   const s = Math.floor(secs % 60)
@@ -86,6 +131,7 @@ const startRunning = () => {
         startPosition.value = [pos.coords.latitude, pos.coords.longitude]
         currentPath.value = [startPosition.value]
         initMap()
+        requestWakeLock() // 시작 시 Wake Lock 요청
       }, (error) => {
         console.error('초기 위치 획득 실패:', error)
         if (error.code === 1) alert('GPS 권한이 거부되었습니다. 기기 설정에서 Safari(또는 사용 중인 브라우저)의 위치 권한을 허용해주세요.')
@@ -446,6 +492,7 @@ onUnmounted(() => {
     map.remove()
     map = null
   }
+  releaseWakeLock()
 })
 </script>
 
@@ -515,6 +562,20 @@ onUnmounted(() => {
           <div class="text-h5 font-weight-bold text-white">{{ cadence }}</div>
         </VCol>
       </VRow>
+
+      <!-- 주머니 모드 진입 버튼 -->
+      <VBtn
+        v-if="isRunning"
+        variant="tonal"
+        color="white"
+        size="small"
+        rounded="pill"
+        class="mt-6 px-6"
+        prepend-icon="mdi-lock-outline"
+        @click="togglePocketMode"
+      >
+        주머니 모드 (화면 잠금)
+      </VBtn>
     </div>
 
     <div class="controls d-flex flex-column align-center justify-center shrink-0 mb-6 mt-2">
@@ -636,13 +697,70 @@ onUnmounted(() => {
         </VCardActions>
       </VCard>
     </VDialog>
+
+    <!-- 주머니 모드 오버레이 (화면 동결 방지) -->
+    <VOverlay
+      v-model="isPocketMode"
+      persistent
+      class="align-center justify-center"
+      scrim="#000"
+      :opacity="1"
+      style="z-index: 9999;"
+    >
+      <div class="pocket-mode-content text-center px-10" style="width: 100vw;">
+        <div class="mb-8">
+          <VIcon icon="mdi-lock" size="80" color="white" class="mb-4 opacity-20" />
+          <h2 class="text-h4 text-white font-weight-black mb-2">주머니 모드</h2>
+          <p class="text-body-2 text-grey-lighten-1">
+            화면이 켜진 상태로 유지되어<br>
+            기록 중단 없이 안전하게 추적합니다.
+          </p>
+        </div>
+
+        <div class="stats-mini mb-12 py-4 border-y border-grey-darken-3">
+          <div class="text-h3 text-white font-weight-black mb-1">{{ distance.toFixed(2) }} km</div>
+          <div class="text-h6 text-primary">{{ formattedTime }}</div>
+        </div>
+        
+        <div class="unlock-area">
+          <p class="text-caption text-grey mb-4">해제하려면 오른쪽으로 끝까지 미세요</p>
+          <div class="slider-wrapper bg-grey-darken-4 rounded-pill pa-2 d-flex align-center">
+            <VSlider
+              v-model="unlockValue"
+              min="0"
+              max="100"
+              hide-details
+              color="primary"
+              track-color="transparent"
+              class="unlock-slider flex-grow-1"
+              @end="handleUnlock"
+            >
+              <template v-slot:prepend>
+                <VAvatar color="primary" size="48">
+                  <VIcon icon="mdi-chevron-right" color="white" />
+                </VAvatar>
+              </template>
+            </VSlider>
+          </div>
+        </div>
+      </div>
+    </VOverlay>
   </div>
 </template>
 
 <style scoped>
 .record-container {
   padding: 1.5rem;
-  min-height: 80vh;
+  min-height: 100vh;
+}
+.unlock-slider :deep(.v-slider-thumb) {
+  width: 56px;
+  height: 56px;
+}
+.opacity-20 { opacity: 0.2; }
+.border-y {
+  border-top: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 .stats-card {
