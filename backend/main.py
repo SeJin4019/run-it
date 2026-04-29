@@ -185,16 +185,22 @@ def decline_friend_request(request_id: int, db: Session = Depends(get_db)):
 @app.post("/api/users/remove-friend")
 def remove_friend(user_id: int, friend_id: int, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+    friend = db.query(models.User).filter(models.User.id == friend_id).first()
     
-    current_friends = list(user.friends) if user.friends else []
-    if friend_id not in current_friends:
-        raise HTTPException(status_code=400, detail="친구 목록에 없는 사용자입니다.")
-    
-    current_friends.remove(friend_id)
-    user.friends = current_friends
+    if user:
+        f1 = list(user.friends) if user.friends else []
+        if friend_id in f1:
+            f1.remove(friend_id)
+            user.friends = f1
+            
+    if friend:
+        f2 = list(friend.friends) if friend.friends else []
+        if user_id in f2:
+            f2.remove(user_id)
+            friend.friends = f2
+            
     db.commit()
+    return {"message": "상호 친구 삭제가 완료되었습니다."}
     
     return {"message": "친구 삭제가 완료되었습니다."}
 

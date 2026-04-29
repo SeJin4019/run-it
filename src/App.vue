@@ -44,9 +44,22 @@ const selectedDifficulty = ref('전체')
 const selectedCourse = ref(null)
 const searchQuery = ref('')
 
-// 인증 및 기록 상태
-const isLoggedIn = ref(false)
-const currentUser = ref(null)
+// 인증 및 기록 상태 - 초기 상태 동기 로드하여 깜빡임 방지
+const savedToken = localStorage.getItem('rundanggeun_token')
+const savedUser = localStorage.getItem('rundanggeun_user')
+const savedExpiry = localStorage.getItem('rundanggeun_expiry')
+
+const checkIsLoggedIn = () => {
+  if (!savedToken || !savedUser) return false
+  if (savedExpiry) {
+    const now = new Date().getTime()
+    return now <= parseInt(savedExpiry)
+  }
+  return true
+}
+
+const isLoggedIn = ref(checkIsLoggedIn())
+const currentUser = ref(isLoggedIn.value ? JSON.parse(savedUser) : null)
 const showAuthDialog = ref(false)
 const prefilledCourseData = ref(null) // 기록 종료 후 추천 경로 등록용 데이터
 
@@ -116,31 +129,7 @@ onMounted(async () => {
     console.error('코스 로딩 실패:', e)
   }
 
-  // 로그인 세션 확인 (일정 시간 후 만료 처리)
-  const savedToken = localStorage.getItem('rundanggeun_token')
-  const savedUser = localStorage.getItem('rundanggeun_user')
-  const savedExpiry = localStorage.getItem('rundanggeun_expiry')
-  
-  if (savedToken && savedUser && savedExpiry) {
-    const now = new Date().getTime()
-    if (now > parseInt(savedExpiry)) {
-      // 세션 만료됨
-      alert('로그인 세션이 만료되었습니다. 다시 로그인해주세요.')
-      handleLogout(false) // 만료로 인한 조용히 로그아웃
-    } else {
-      currentUser.value = JSON.parse(savedUser)
-      isLoggedIn.value = true
-      fetchUserRecords()
-      fetchUserShoes()
-      startLiveFriendsPolling()
-    }
-  } else if (savedToken && savedUser) {
-     // 구버전(만료시간 없는) 데이터 호환성
-      currentUser.value = JSON.parse(savedUser)
-      isLoggedIn.value = true
-      updateCourseLikeStates()
-      fetchUserRecords()
-  }
+  // 전체 유저 목록 불러오기 (커뮤니티용)
 
   // 전체 유저 목록 불러오기 (커뮤니티용)
   try {
@@ -152,8 +141,12 @@ onMounted(async () => {
     console.error('유저 로딩 실패:', e)
   }
 
-  // 전체 기록 불러오기
-  fetchGlobalRecords()
+  // 데이터 초기화
+  if (isLoggedIn.value) {
+    fetchUserRecords()
+    fetchUserShoes()
+    startLiveFriendsPolling()
+  }
 
   // 온라인 상태(하트비트) 시작
   sendHeartbeat()

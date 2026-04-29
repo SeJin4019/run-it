@@ -161,7 +161,8 @@ const clearPath = () => {
  */
 const fitFullCourse = () => {
   if (polyline && polyline.getBounds().isValid()) {
-    map.fitBounds(polyline.getBounds(), { padding: [40, 40] })
+    // 패딩을 줄여서 코스가 더 크게(가깝게) 보이도록 수정
+    map.fitBounds(polyline.getBounds(), { padding: [20, 20], maxZoom: 17 })
   }
 }
 
