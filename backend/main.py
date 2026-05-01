@@ -12,26 +12,25 @@ models.Base.metadata.create_all(bind=engine)
 
 # DB 스키마 마이그레이션 (기존 테이블에 컬럼 추가)
 try:
-    with engine.connect() as conn:
-        # crews 테이블에 leader_id 추가
+    with engine.begin() as conn:
+        # crews 테이블 컬럼 추가
         try:
-            conn.execute(text("ALTER TABLE crews ADD COLUMN leader_id INTEGER"))
+            conn.execute(text("ALTER TABLE crews ADD COLUMN IF NOT EXISTS leader_id INTEGER"))
+        except Exception: pass
+        try:
+            conn.execute(text("ALTER TABLE crews ADD COLUMN IF NOT EXISTS total_distance FLOAT DEFAULT 0.0"))
         except Exception: pass
         
-        # crews 테이블에 total_distance 추가
+        # crew_members 테이블 컬럼 추가
         try:
-            conn.execute(text("ALTER TABLE crews ADD COLUMN total_distance FLOAT DEFAULT 0.0"))
+            conn.execute(text("ALTER TABLE crew_members ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'accepted'"))
         except Exception: pass
         
-        # crew_members 테이블에 status 추가
+        # 기존 데이터 보정
         try:
-            conn.execute(text("ALTER TABLE crew_members ADD COLUMN status VARCHAR"))
+            conn.execute(text("UPDATE crew_members SET status = 'accepted' WHERE status IS NULL"))
         except Exception: pass
-        
-        # 기존 데이터가 있으면 'accepted'로 채우기
-        conn.execute(text("UPDATE crew_members SET status = 'accepted' WHERE status IS NULL"))
-        
-        conn.commit()
+    print("Database migration logic executed.")
 except Exception as e:
     print(f"Database migration error: {e}")
 

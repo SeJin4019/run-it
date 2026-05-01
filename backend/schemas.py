@@ -117,6 +117,7 @@ class CrewMember(BaseModel):
     user_id: int
     name: str
     profile_image: Optional[str] = None
+    status: Optional[str] = "accepted"
     joined_at: datetime
 
     class Config:
