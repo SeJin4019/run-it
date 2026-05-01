@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import List
 import datetime
 import models, schemas, auth, database
@@ -8,6 +9,22 @@ from database import engine, get_db
 
 # DB 테이블 생성
 models.Base.metadata.create_all(bind=engine)
+
+# DB 스키마 마이그레이션 (기존 테이블에 컬럼 추가)
+try:
+    with engine.connect() as conn:
+        # crews 테이블에 leader_id 추가
+        conn.execute(text("ALTER TABLE crews ADD COLUMN IF NOT EXISTS leader_id INTEGER"))
+        
+        # crew_members 테이블에 status 추가
+        conn.execute(text("ALTER TABLE crew_members ADD COLUMN IF NOT EXISTS status VARCHAR"))
+        # 기존 데이터가 있으면 'accepted'로 채우기
+        conn.execute(text("UPDATE crew_members SET status = 'accepted' WHERE status IS NULL"))
+        
+        conn.commit()
+        print("Database migration successful.")
+except Exception as e:
+    print(f"Database migration skipped or error: {e}")
 
 # 누락된 컬럼 자동 마이그레이션 (Render DB 배포용)
 try:
