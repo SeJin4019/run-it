@@ -112,46 +112,51 @@ watch(currentView, (newView, oldView) => {
     // 이전 뷰가 유효하면 복구, 아니면 discover로 이동
     currentView.value = protectedViews.includes(oldView) ? 'discover' : (oldView || 'discover')
   }
+
+  // 커뮤니티 뷰로 전환 시 최신 전체 기록 로드 (친구 활동 및 랭킹 갱신용)
+  if (newView === 'community' && isLoggedIn.value) {
+    fetchGlobalRecords()
+  }
 })
 
 /**
  * 앱 초기화 시 백엔드에서 데이터를 불러옵니다.
  */
 onMounted(async () => {
-  // 코스 목록 불러오기
+  // 코스, 유저 목록을 병렬로 로드
   try {
-    const res = await fetch(`${API_URL}/courses`)
-    if (res.ok) {
-      courses.value = await res.json()
+    const [coursesRes, usersRes] = await Promise.all([
+      fetch(`${API_URL}/courses`),
+      fetch(`${API_URL}/users`)
+    ])
+    
+    if (coursesRes.ok) {
+      courses.value = await coursesRes.json()
       updateCourseLikeStates()
     }
-  } catch (e) {
-    console.error('코스 로딩 실패:', e)
-  }
-
-  // 전체 유저 목록 불러오기 (커뮤니티용)
-
-  // 전체 유저 목록 불러오기 (커뮤니티용)
-  try {
-    const res = await fetch(`${API_URL}/users`)
-    if (res.ok) {
-      globalUsers.value = await res.json()
+    
+    if (usersRes.ok) {
+      globalUsers.value = await usersRes.json()
     }
   } catch (e) {
-    console.error('유저 로딩 실패:', e)
+    console.error('초기 데이터 로딩 실패:', e)
   }
 
-  // 데이터 초기화 및 정보 동기화
+  // 로그인 상태인 경우 유저별 데이터 로드
   if (isLoggedIn.value && currentUser.value) {
-    // 최신 유저 정보 동기화 (프로필 이미지 등 반영)
+    // 최신 유저 정보 동기화
     const freshMe = globalUsers.value.find(u => u.id === currentUser.value.id)
     if (freshMe) {
       currentUser.value = freshMe
       localStorage.setItem('rundanggeun_user', JSON.stringify(freshMe))
     }
     
-    fetchUserRecords()
-    fetchUserShoes()
+    // 유저별 기록 및 신발 정보 병렬 로드
+    Promise.all([
+      fetchUserRecords(),
+      fetchUserShoes()
+    ]).catch(e => console.error('유저 데이터 로딩 실패:', e))
+    
     startLiveFriendsPolling()
   }
 
@@ -174,31 +179,38 @@ const sendHeartbeat = async () => {
 
 const refreshData = async () => {
   try {
-    const res = await fetch(`${API_URL}/courses`)
-    if (res.ok) {
-      courses.value = await res.json()
+    // 모든 기본 데이터를 병렬로 로드하여 속도 개선
+    const promises = [
+      fetch(`${API_URL}/courses`).then(r => r.ok ? r.json() : null),
+      fetch(`${API_URL}/users`).then(r => r.ok ? r.json() : null)
+    ]
+    
+    const [coursesData, usersData] = await Promise.all(promises)
+    
+    if (coursesData) {
+      courses.value = coursesData
       updateCourseLikeStates()
     }
     
-    const userRes = await fetch(`${API_URL}/users`)
-    if (userRes.ok) {
-      const allUsers = await userRes.json()
-      globalUsers.value = allUsers
-      
-      // 내 정보(친구 목록 등) 동기화
+    if (usersData) {
+      globalUsers.value = usersData
+      // 내 정보 동기화
       if (currentUser.value) {
-        const latestMe = allUsers.find(u => u.id === currentUser.value.id)
+        const latestMe = usersData.find(u => u.id === currentUser.value.id)
         if (latestMe) {
           handleUpdateUser(latestMe)
         }
       }
     }
 
+    // 로그인된 경우 추가 데이터 로드
     if (isLoggedIn.value && currentUser.value) {
-      await fetchUserRecords()
-      await fetchUserShoes()
-      if (typeof fetchLiveFriends === 'function') fetchLiveFriends()
-      if (typeof fetchPendingRequests === 'function') fetchPendingRequests()
+      await Promise.all([
+        fetchUserRecords(),
+        fetchUserShoes(),
+        fetchLiveFriends(),
+        fetchPendingRequests()
+      ])
     }
 
     snackbar.value = {
@@ -213,8 +225,22 @@ const refreshData = async () => {
 }
 
 const fetchUserRecords = async () => {
-  // 전체 기록을 가져오도록 변경하여 친구 기록이 사라지는 문제 해결
-  await fetchGlobalRecords()
+  if (!currentUser.value) return
+  try {
+    // 1. 먼저 본인의 기록만 빠르게 가져옴 (히스토리 뷰용)
+    const res = await fetch(`${API_URL}/records/${currentUser.value.id}`)
+    if (res.ok) {
+      const myData = await res.json()
+      // globalRecords에 본인 기록 반영 (합치기)
+      const otherRecords = globalRecords.value.filter(r => r.user_id !== currentUser.value.id)
+      globalRecords.value = [...otherRecords, ...myData]
+    }
+    
+    // 2. 전체 기록(친구용)은 백그라운드에서 비동기로 가져옴 (속도 저하 방지)
+    fetchGlobalRecords()
+  } catch (e) {
+    console.error('기록 로딩 실패:', e)
+  }
 }
 
 const fetchUserShoes = async () => {
@@ -231,7 +257,7 @@ const fetchUserShoes = async () => {
 
 const fetchLiveFriends = async () => {
   if (!currentUser.value || !isLoggedIn.value) return
-  fetchPendingRequests()
+  // fetchPendingRequests() // 여기서 매번 호출하지 않고 별도 폴링으로 분리
   try {
     const res = await fetch(`${API_URL}/live/friends?user_id=${currentUser.value.id}`)
     if (res.ok) {
@@ -342,11 +368,16 @@ const handleDeclineRequest = async (requestId) => {
 
 const startLiveFriendsPolling = () => {
   fetchLiveFriends()
-  // 친구 수락 등 상태 변화를 감지하기 위해 가끔 전체 데이터도 갱신 (30초마다)
-  setInterval(refreshData, 30000)
+  fetchPendingRequests()
+  
+  // 친구 수락 등 상태 변화를 감지하기 위해 가끔 전체 데이터도 갱신 (60초마다로 완화)
+  setInterval(refreshData, 60000)
   
   if (liveFriendsTimer.value) clearInterval(liveFriendsTimer.value)
-  liveFriendsTimer.value = setInterval(fetchLiveFriends, 2000) // 2초마다 갱신 (실시간성 극대화)
+  liveFriendsTimer.value = setInterval(fetchLiveFriends, 5000) // 5초마다 갱신 (기존 2초에서 완화)
+  
+  // 친구 요청은 더 가끔 확인 (30초마다)
+  setInterval(fetchPendingRequests, 30000)
 }
 
 /**
