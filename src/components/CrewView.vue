@@ -248,25 +248,34 @@ onMounted(fetchCrews)
         <div class="header-overlay-dark"></div>
         <div class="position-relative d-flex align-center" style="z-index: 1;">
           <div class="exploration-icon-box mr-4">
-            <VIcon icon="mdi-compass-outline" color="white" size="24" />
+            <VIcon icon="mdi-trophy-outline" color="white" size="24" />
           </div>
           <div>
-            <h3 class="text-h6 font-weight-black">지구촌 러닝 크루 탐색 🌍</h3>
-            <p class="text-caption opacity-90">당신에게 딱 맞는 러닝 메이트와 함께 달리세요</p>
+            <h3 class="text-h6 font-weight-black">크루 랭킹 & 탐색 🏆</h3>
+            <p class="text-caption opacity-90">가장 많이 달린 최고의 크루를 확인해보세요</p>
           </div>
         </div>
       </div>
       <VRow>
-        <VCol v-for="crew in otherCrews" :key="crew.id" cols="12" sm="6" md="4">
+        <VCol v-for="(crew, index) in filteredCrews" :key="crew.id" cols="12" sm="6" md="4">
           <VCard flat class="crew-card rounded-xl border pa-4 h-100 shadow-sm" @click="openCrewDetail(crew)">
             <div class="d-flex align-center mb-3">
               <VAvatar color="grey-lighten-4" size="52" rounded="lg" class="mr-3 overflow-hidden">
                 <img v-if="crew.image" :src="crew.image" alt="Crew" style="width:100%; height:100%; object-fit:cover;">
                 <VIcon v-else icon="mdi-account-group-outline" color="grey" />
               </VAvatar>
-              <div class="overflow-hidden">
-                <div class="font-weight-bold text-truncate">{{ crew.name }}</div>
+              <div class="overflow-hidden flex-grow-1">
+                <div class="font-weight-bold text-truncate d-flex align-center">
+                  {{ crew.name }}
+                  <VChip v-if="index < 3" size="x-small" :color="index === 0 ? 'warning' : 'grey-lighten-1'" class="ml-2 px-1" variant="flat">
+                    {{ index + 1 }}위
+                  </VChip>
+                </div>
                 <div class="text-caption text-grey">{{ crew.member_count }}명의 멤버</div>
+              </div>
+              <div class="text-right">
+                <div class="text-subtitle-2 font-weight-bold text-primary">{{ crew.total_distance }}</div>
+                <div class="text-caption text-grey" style="font-size: 0.65rem">Total km</div>
               </div>
             </div>
             <p class="text-body-2 text-grey mb-4 line-clamp-2 h-40">{{ crew.description }}</p>
@@ -313,6 +322,7 @@ onMounted(fetchCrews)
             </div>
             <div class="d-flex gap-2">
               <VChip size="small" color="white" variant="flat" class="text-primary font-weight-bold">{{ selectedCrew.member_count }}명 참여 중</VChip>
+              <VChip size="small" color="warning" variant="flat" class="font-weight-bold">총 {{ selectedCrew.total_distance }} km 달성</VChip>
             </div>
           </div>
         </div>

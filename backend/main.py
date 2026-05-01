@@ -12,9 +12,9 @@ models.Base.metadata.create_all(bind=engine)
 
 # DB 스키마 마이그레이션 (기존 테이블에 컬럼 추가)
 try:
-    with engine.connect() as conn:
-        # crews 테이블에 leader_id 추가
+        # crews 테이블에 leader_id, total_distance 추가
         conn.execute(text("ALTER TABLE crews ADD COLUMN IF NOT EXISTS leader_id INTEGER"))
+        conn.execute(text("ALTER TABLE crews ADD COLUMN IF NOT EXISTS total_distance FLOAT DEFAULT 0.0"))
         
         # crew_members 테이블에 status 추가
         conn.execute(text("ALTER TABLE crew_members ADD COLUMN IF NOT EXISTS status VARCHAR"))
@@ -331,6 +331,18 @@ def create_record(record: schemas.RecordCreate, user_id: int, db: Session = Depe
         if db_shoe:
             db_shoe.total_km += record.distance
             
+    # 소속된 크루의 총 거리 업데이트
+    user_crews = db.query(models.CrewMember).filter(
+        models.CrewMember.user_id == user_id,
+        models.CrewMember.status == "accepted"
+    ).all()
+    
+    for mc in user_crews:
+        crew = db.query(models.Crew).filter(models.Crew.id == mc.crew_id).first()
+        if crew:
+            if crew.total_distance is None: crew.total_distance = 0.0
+            crew.total_distance += record.distance
+            
     db.commit()
     db.refresh(db_record)
     return db_record
@@ -494,11 +506,15 @@ def get_crews(db: Session = Depends(get_db)):
             "description": crew.description,
             "image": crew.image,
             "leader_id": crew.leader_id,
+            "total_distance": round(crew.total_distance or 0.0, 2),
             "created_at": crew.created_at,
             "member_count": len(accepted_members),
             "members": members_list,
             "pending_members": pending_list
         })
+    
+    # 총 거리 순으로 정렬 (랭킹)
+    result.sort(key=lambda x: x['total_distance'], reverse=True)
     return result
 
 @app.post("/api/crews")

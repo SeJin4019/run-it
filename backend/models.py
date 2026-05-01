@@ -105,6 +105,7 @@ class Crew(Base):
     description = Column(String)
     image = Column(String, nullable=True)
     leader_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    total_distance = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     leader = relationship("User")
