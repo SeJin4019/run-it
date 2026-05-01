@@ -132,9 +132,12 @@ class CrewCreate(CrewBase):
 
 class Crew(CrewBase):
     id: int
+    leader_id: Optional[int] = None
+    total_distance: float = 0.0
     created_at: datetime
     member_count: int = 0
     members: List[CrewMember] = []
+    pending_members: List[CrewMember] = []
 
     class Config:
         from_attributes = True

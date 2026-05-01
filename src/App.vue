@@ -106,8 +106,8 @@ const showFriendProfile = ref(false)
 const showLiveMap = ref(false) // 실시간 지도 팝업
 const liveMapFriend = ref(null) // 현재 지도에서 보고 있는 친구
 const crewLiveMembers = ref([]) // 현재 지도에서 보고 있는 크루 멤버들
-const selectedCrew = ref(null) // 현재 지도로 보고 있는 크루
 const crewLiveTimer = ref(null) // 크루 실시간 동기화 타이머
+const crews = ref([]) // 전체 크루 목록
 
 // 알림용 스낵바 상태
 const snackbar = ref({
@@ -184,6 +184,8 @@ onMounted(async () => {
     if (usersRes.ok) {
       globalUsers.value = await usersRes.json()
     }
+
+    await fetchCrews()
   } catch (e) {
     console.error('초기 데이터 로딩 실패:', e)
   }
@@ -223,15 +225,27 @@ const sendHeartbeat = async () => {
   } catch (e) {}
 }
 
+const fetchCrews = async () => {
+  try {
+    const res = await fetch(`${API_URL}/crews`)
+    if (res.ok) {
+      crews.value = await res.json()
+    }
+  } catch (e) {
+    console.error('크루 로딩 실패:', e)
+  }
+}
+
 const refreshData = async () => {
   try {
     // 모든 기본 데이터를 병렬로 로드하여 속도 개선
     const promises = [
       fetch(`${API_URL}/courses`).then(r => r.ok ? r.json() : null),
-      fetch(`${API_URL}/users`).then(r => r.ok ? r.json() : null)
+      fetch(`${API_URL}/users`).then(r => r.ok ? r.json() : null),
+      fetch(`${API_URL}/crews`).then(r => r.ok ? r.json() : null)
     ]
     
-    const [coursesData, usersData] = await Promise.all(promises)
+    const [coursesData, usersData, crewsData] = await Promise.all(promises)
     
     if (coursesData) {
       courses.value = coursesData
@@ -247,6 +261,10 @@ const refreshData = async () => {
           handleUpdateUser(latestMe)
         }
       }
+    }
+
+    if (crewsData) {
+      crews.value = crewsData
     }
 
     // 로그인된 경우 추가 데이터 로드
