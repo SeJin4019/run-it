@@ -189,13 +189,19 @@ onMounted(fetchCrews)
       </VRow>
     </div>
 
-    <VDivider class="mb-8" v-if="myCrews.length > 0" />
+    <VDivider class="mb-10" v-if="myCrews.length > 0" />
 
     <!-- 탐색 섹션 -->
-    <div>
-      <h3 class="text-subtitle-1 font-weight-bold mb-4 d-flex align-center">
-        <VIcon icon="mdi-compass-outline" class="mr-2" color="primary" /> 새로운 크루 탐색
-      </h3>
+    <div class="exploration-section">
+      <div class="d-flex align-center mb-6">
+        <div class="exploration-icon-box mr-3">
+          <VIcon icon="mdi-compass-outline" color="white" size="20" />
+        </div>
+        <div>
+          <h3 class="text-h6 font-weight-black">새로운 크루 탐색</h3>
+          <p class="text-caption text-grey">나와 딱 맞는 러닝 메이트를 찾아보세요</p>
+        </div>
+      </div>
       <VRow>
         <VCol v-for="crew in otherCrews" :key="crew.id" cols="12" sm="6" md="4">
           <VCard flat class="crew-card rounded-xl border pa-4 h-100 shadow-sm" @click="openCrewDetail(crew)">
@@ -374,6 +380,16 @@ onMounted(fetchCrews)
 }
 .active-crew {
   background: linear-gradient(to bottom right, #ffffff, #f9f9ff);
+}
+.exploration-icon-box {
+  background: linear-gradient(135deg, #ff4b2b, #ff8a3d);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-center: center;
+  justify-content: center;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(255, 75, 43, 0.2);
 }
 .line-clamp-1 {
   display: -webkit-box;

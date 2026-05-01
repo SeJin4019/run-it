@@ -1,15 +1,17 @@
 <script setup>
 import { computed, ref } from 'vue'
+import CrewView from './CrewView.vue'
 
 const props = defineProps({
   currentUser: Object,
   globalUsers: Array,
   globalRecords: Array,
   liveFriends: Array,
-  pendingRequests: Array
+  pendingRequests: Array,
+  apiUrl: String
 })
 
-const emit = defineEmits(['open-profile', 'add-friend-by-email', 'accept-request', 'decline-request', 'open-live-map'])
+const emit = defineEmits(['open-profile', 'add-friend-by-email', 'accept-request', 'decline-request', 'open-live-map', 'open-crew-map', 'refresh'])
 
 const searchEmail = ref('')
 const isAdding = ref(false)
@@ -157,6 +159,9 @@ const openMap = (friend) => {
       <VTab value="friends" class="text-subtitle-2 font-weight-bold">친구 목록</VTab>
       <VTab value="ranking" class="text-subtitle-2 font-weight-bold">
         <VIcon icon="mdi-trophy-outline" class="mr-1" size="small" /> 랭킹
+      </VTab>
+      <VTab value="crews" class="text-subtitle-2 font-weight-bold">
+        <VIcon icon="mdi-account-multiple" class="mr-1" size="small" /> 크루
       </VTab>
     </VTabs>
 
@@ -324,6 +329,15 @@ const openMap = (friend) => {
             </div>
           </VCard>
         </div>
+      </VWindowItem>
+
+      <!-- 크루 탭 -->
+      <VWindowItem value="crews">
+        <CrewView 
+          :current-user="currentUser"
+          :api-url="apiUrl"
+          @open-crew-map="(crew) => emit('open-crew-map', crew)"
+        />
       </VWindowItem>
     </VWindow>
   </div>

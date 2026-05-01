@@ -439,38 +439,66 @@ def get_friends_live_locations(user_id: int, db: Session = Depends(get_db)):
     return result
 
 # --- 크루 API ---
-@app.get("/api/crews", response_model=List[schemas.Crew])
+@app.get("/api/crews")
 def get_crews(db: Session = Depends(get_db)):
-    crews = db.query(models.Crew).all()
-    for crew in crews:
-        crew.member_count = len(crew.members)
-        # 멤버 정보 매핑
-        crew_members = []
+    db_crews = db.query(models.Crew).all()
+    result = []
+    for crew in db_crews:
+        members_list = []
         for m in crew.members:
-            crew_members.append({
-                "user_id": m.user.id,
-                "name": m.user.name,
-                "profile_image": m.user.profile_image,
-                "joined_at": m.joined_at
-            })
-        crew.members = crew_members
-    return crews
+            if m.user:
+                members_list.append({
+                    "user_id": m.user.id,
+                    "name": m.user.name,
+                    "profile_image": m.user.profile_image,
+                    "joined_at": m.joined_at
+                })
+        
+        result.append({
+            "id": crew.id,
+            "name": crew.name,
+            "description": crew.description,
+            "image": crew.image,
+            "created_at": crew.created_at,
+            "member_count": len(crew.members),
+            "members": members_list
+        })
+    return result
 
-@app.post("/api/crews", response_model=schemas.Crew)
-def create_crew(crew: schemas.CrewCreate, user_id: int, db: Session = Depends(get_db)):
-    db_crew = models.Crew(**crew.dict())
+@app.post("/api/crews")
+def create_crew(crew_data: schemas.CrewCreate, user_id: int, db: Session = Depends(get_db)):
+    # 1. 크루 생성
+    db_crew = models.Crew(
+        name=crew_data.name,
+        description=crew_data.description,
+        image=crew_data.image
+    )
     db.add(db_crew)
     db.commit()
     db.refresh(db_crew)
     
-    # 생성자를 첫 멤버로 추가
+    # 2. 생성자를 멤버로 추가
     member = models.CrewMember(crew_id=db_crew.id, user_id=user_id)
     db.add(member)
     db.commit()
-    
     db.refresh(db_crew)
-    db_crew.member_count = 1
-    return db_crew
+    
+    # 3. 결과 반환 (스키마에 맞춰 수동 매핑)
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    return {
+        "id": db_crew.id,
+        "name": db_crew.name,
+        "description": db_crew.description,
+        "image": db_crew.image,
+        "created_at": db_crew.created_at,
+        "member_count": 1,
+        "members": [{
+            "user_id": user.id,
+            "name": user.name,
+            "profile_image": user.profile_image,
+            "joined_at": member.joined_at
+        }]
+    }
 
 @app.post("/api/crews/{crew_id}/join")
 def join_crew(crew_id: int, user_id: int, db: Session = Depends(get_db)):

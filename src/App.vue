@@ -108,9 +108,8 @@ const myRecords = computed(() => {
   return globalRecords.value.filter(r => r.user_id === currentUser.value.id)
 })
 
-// 로그인 안된 상태에서 접근이 필요한 뷰 감시
 watch(currentView, (newView, oldView) => {
-  const protectedViews = ['community', 'history', 'record', 'create', 'crew']
+  const protectedViews = ['community', 'history', 'record', 'create']
   if (!isLoggedIn.value && protectedViews.includes(newView)) {
     showAuthDialog.value = true
     // 이전 뷰가 유효하면 복구, 아니면 discover로 이동
@@ -943,7 +942,6 @@ const goToCreate = () => {
           />
         </div>
 
-        <!-- 커뮤니티 뷰 -->
         <div v-else-if="currentView === 'community'">
           <CommunityView 
             :current-user="currentUser"
@@ -951,21 +949,14 @@ const goToCreate = () => {
             :global-records="globalRecords"
             :live-friends="liveFriends"
             :pending-requests="pendingRequests"
+            :api-url="API_URL"
             @open-profile="openFriendProfile"
             @add-friend-by-email="handleAddFriendByEmail"
             @accept-request="handleAcceptRequest"
             @decline-request="handleDeclineRequest"
             @open-live-map="openFriendMap"
-            @refresh="refreshData"
-          />
-        </div>
-
-        <!-- 크루 뷰 -->
-        <div v-else-if="currentView === 'crew'">
-          <CrewView 
-            :current-user="currentUser"
-            :api-url="API_URL"
             @open-crew-map="openCrewMap"
+            @refresh="refreshData"
           />
         </div>
 
@@ -1142,11 +1133,6 @@ const goToCreate = () => {
       <VBtn value="community">
         <VIcon icon="mdi-account-group" />
         <span>커뮤니티</span>
-      </VBtn>
-
-      <VBtn value="crew">
-        <VIcon icon="mdi-account-multiple" />
-        <span>크루</span>
       </VBtn>
 
       <VBtn value="history">
