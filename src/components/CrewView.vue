@@ -291,9 +291,9 @@ onMounted(fetchCrews)
     </div>
 
     <!-- 크루 상세 다이얼로그 -->
-    <VDialog v-model="showDetailDialog" max-width="500" transition="dialog-bottom-transition">
-      <VCard class="rounded-xl overflow-hidden" v-if="selectedCrew">
-        <div class="crew-detail-header pa-6 bg-primary text-white position-relative overflow-hidden">
+    <VDialog v-model="showDetailDialog" max-width="500" scrollable transition="dialog-bottom-transition">
+      <VCard class="rounded-xl" v-if="selectedCrew" style="max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="crew-detail-header pa-6 bg-primary text-white position-relative overflow-hidden shrink-0">
           <!-- 헤더 배경 이미지 (있을 경우) -->
           <div v-if="selectedCrew.image" class="header-bg-image" :style="{ backgroundImage: `url(${selectedCrew.image})` }"></div>
           <div class="header-overlay"></div>
@@ -381,7 +381,7 @@ onMounted(fetchCrews)
           </div>
         </VCardText>
 
-        <VCardActions class="pa-6 pt-0 d-flex flex-column gap-2">
+        <VCardActions class="pa-6 pt-0 d-flex flex-column gap-2 shrink-0">
           <template v-if="isMember(selectedCrew)">
             <VBtn 
               block 
