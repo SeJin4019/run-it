@@ -42,6 +42,13 @@ const isPocketMode = ref(false)
 const unlockValue = ref(0)
 let wakeLock = null
 
+// 케이던스 센서 관련
+const steps = ref(0)
+const lastStepTime = ref(0)
+const stepThreshold = 12.0 // 가속도 변화 임계값 (G단위 아님, m/s^2)
+let lastAcceleration = { x: 0, y: 0, z: 0 }
+const stepBuffer = ref([]) // 최근 10초간의 걸음 시간 기록
+
 const requestWakeLock = async () => {
   if ('wakeLock' in navigator) {
     try {
@@ -49,6 +56,46 @@ const requestWakeLock = async () => {
       console.log('Wake Lock 활성화')
     } catch (err) {
       console.warn('Wake Lock 요청 실패:', err)
+    }
+  }
+}
+
+const requestSensorPermission = async () => {
+  if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+    try {
+      const permission = await DeviceMotionEvent.requestPermission()
+      if (permission === 'granted') {
+        window.addEventListener('devicemotion', handleMotion)
+        console.log('가속도 센서 권한 허용됨')
+      }
+    } catch (e) {
+      console.warn('센서 권한 요청 에러:', e)
+    }
+  } else {
+    window.addEventListener('devicemotion', handleMotion)
+  }
+}
+
+const handleMotion = (event) => {
+  if (!isRunning.value) return
+
+  const acc = event.accelerationIncludingGravity || event.acceleration
+  if (!acc) return
+
+  // 3축 가속도 합산 (가속도 크기 계산)
+  const magnitude = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z)
+  
+  // 간단한 피크 검출 로직
+  const now = Date.now()
+  if (magnitude > stepThreshold && (now - lastStepTime.value) > 250) { // 최소 250ms 간격 (최대 240spm)
+    steps.value++
+    lastStepTime.value = now
+    stepBuffer.value.push(now)
+    
+    // 최근 10초 데이터만 유지
+    const tenSecondsAgo = now - 10000
+    while (stepBuffer.value.length > 0 && stepBuffer.value[0] < tenSecondsAgo) {
+      stepBuffer.value.shift()
     }
   }
 }
@@ -133,7 +180,8 @@ const startRunning = () => {
         startPosition.value = [pos.coords.latitude, pos.coords.longitude]
         currentPath.value = [startPosition.value]
         initMap()
-        requestWakeLock() // 시작 시 Wake Lock 요청
+        requestWakeLock() 
+        requestSensorPermission() // 센서 권한 요청 추가
       }, (error) => {
         console.error('초기 위치 획득 실패:', error)
         if (error.code === 1) alert('GPS 권한이 거부되었습니다. 기기 설정에서 Safari(또는 사용 중인 브라우저)의 위치 권한을 허용해주세요.')
@@ -162,11 +210,21 @@ const startRunning = () => {
     elapsedTime.value = accumulatedTime.value + sessionElapsed
 
     if (isRunning.value) {
+      // 1. 센서 데이터 기반 케이던스 계산 (우선순위)
+      const nowMs = Date.now()
+      const tenSecondsAgo = nowMs - 10000
+      
+      // 최근 10초간의 걸음 수로 분당 회전수 계산
+      const recentSteps = stepBuffer.value.filter(t => t > tenSecondsAgo).length
+      let sensorCadence = Math.round(recentSteps * 6) // 10초 데이터이므로 *6
+      
+      // 2. GPS 속도 기반 케이던스 계산 (보조)
       cadenceDistanceHistory.value.push({ t: elapsedTime.value, d: distance.value })
       if (cadenceDistanceHistory.value.length > 5) {
         cadenceDistanceHistory.value.shift()
       }
 
+      let speedCadence = 0
       if (cadenceDistanceHistory.value.length >= 2) {
         const first = cadenceDistanceHistory.value[0]
         const last = cadenceDistanceHistory.value[cadenceDistanceHistory.value.length - 1]
@@ -177,29 +235,26 @@ const startRunning = () => {
           const speedMetersPerMin = distDeltaMeters / timeDeltaMin
           const speedMetersPerSec = speedMetersPerMin / 60
           
-          // 러닝 케이던스 계산 (속도 기반 추정)
-          // 속도가 너무 낮으면(걷기 이하) 0으로 처리
-          let calcCadence = 0
-          if (speedMetersPerSec > 1.5) { // 약 5.4km/h 이상일 때만 러닝으로 간주
-            // 속도에 따른 가변 보폭 가정 (속도가 빠를수록 보폭이 커짐)
-            // 보통 160~190 spm 사이가 일반적
-            const estimatedStride = 0.7 + (speedMetersPerSec * 0.1) // 속도에 따라 0.8m ~ 1.2m 가변
-            calcCadence = Math.round(speedMetersPerMin / estimatedStride)
-          }
-          
-          if (calcCadence < 120) calcCadence = 0 // 최소 케이던스 제한
-          if (calcCadence > 210) calcCadence = 210 // 최대 케이던스 제한
-
-          if (cadence.value === 0 || calcCadence === 0) {
-            cadence.value = calcCadence
-          } else {
-            // 부드러운 전환을 위한 보간 (필터링 강화)
-            cadence.value = Math.round((cadence.value * 0.8) + (calcCadence * 0.2))
+          if (speedMetersPerSec > 1.2) { 
+            const estimatedStride = 0.75 + (speedMetersPerSec * 0.08)
+            speedCadence = Math.round(speedMetersPerMin / estimatedStride)
           }
         }
-      } else {
-        cadence.value = 0
       }
+
+      // 최종 케이던스 결정
+      let finalCadence = 0
+      if (sensorCadence > 80) { // 센서 신호가 확실할 때
+        finalCadence = sensorCadence
+      } else if (speedCadence > 100) { // 센서가 없거나 주머니에 있어 움직임이 적을 때 속도 기반 사용
+        finalCadence = speedCadence
+      }
+      
+      if (finalCadence > 220) finalCadence = 220
+      
+      // 부드러운 전환
+      if (cadence.value === 0) cadence.value = finalCadence
+      else cadence.value = Math.round((cadence.value * 0.7) + (finalCadence * 0.3))
     }
   }, 1000)
 
@@ -508,6 +563,7 @@ onMounted(() => {
 onUnmounted(() => {
   if (timer.value) clearInterval(timer.value)
   if (watchId) navigator.geolocation.clearWatch(watchId)
+  window.removeEventListener('devicemotion', handleMotion) // 리스너 제거
   if (map) {
     map.remove()
     map = null

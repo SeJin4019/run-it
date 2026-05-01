@@ -381,7 +381,7 @@ onMounted(fetchCrews)
           </div>
         </VCardText>
 
-        <VCardActions class="pa-6 pt-0">
+        <VCardActions class="pa-6 pt-0 d-flex flex-column gap-2">
           <template v-if="isMember(selectedCrew)">
             <VBtn 
               block 
@@ -390,7 +390,7 @@ onMounted(fetchCrews)
               rounded="xl" 
               size="large" 
               prepend-icon="mdi-map-marker-radius"
-              class="mb-3 font-weight-bold"
+              class="font-weight-bold mb-2"
               @click="emit('open-crew-map', selectedCrew); showDetailDialog = false"
             >실시간 크루 위치 보기</VBtn>
             
@@ -414,8 +414,9 @@ onMounted(fetchCrews)
               @click="leaveCrew(selectedCrew.id)"
             >크루 탈퇴하기</VBtn>
           </template>
+          
           <VBtn 
-            v-else 
+            v-else
             block 
             color="primary" 
             variant="flat" 
