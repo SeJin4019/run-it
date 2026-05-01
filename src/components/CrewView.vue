@@ -166,6 +166,7 @@ const deleteCrew = async (crewId) => {
     console.error('크루 삭제 실패:', e)
   }
 }
+const formatDate = (dateStr) => {
   const date = new Date(dateStr)
   return `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`
 }
