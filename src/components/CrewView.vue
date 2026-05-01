@@ -9,14 +9,28 @@ const props = defineProps({
 const emit = defineEmits(['open-crew-map', 'refresh'])
 
 const crews = ref([])
+const searchQuery = ref('')
+const selectedCrew = ref(null)
+const showDetailDialog = ref(false)
+const showCreateDialog = ref(false)
+
+const filteredCrews = computed(() => {
+  if (!searchQuery.value) return crews.value
+  const q = searchQuery.value.toLowerCase()
+  return crews.value.filter(c => 
+    c.name.toLowerCase().includes(q) || 
+    c.description.toLowerCase().includes(q)
+  )
+})
+
 const myCrews = computed(() => {
   if (!props.currentUser) return []
-  return crews.value.filter(c => c.members.some(m => m.user_id === props.currentUser.id))
+  return filteredCrews.value.filter(c => c.members.some(m => m.user_id === props.currentUser.id))
 })
 
 const otherCrews = computed(() => {
-  if (!props.currentUser) return crews.value
-  return crews.value.filter(c => !c.members.some(m => m.user_id === props.currentUser.id))
+  if (!props.currentUser) return filteredCrews.value
+  return filteredCrews.value.filter(c => !c.members.some(m => m.user_id === props.currentUser.id))
 })
 
 const fetchCrews = async () => {
@@ -24,10 +38,25 @@ const fetchCrews = async () => {
     const res = await fetch(`${props.apiUrl}/crews`)
     if (res.ok) {
       crews.value = await res.json()
+      // 만약 상세 다이얼로그가 열려있다면 데이터 갱신
+      if (selectedCrew.value) {
+        const updated = crews.value.find(c => c.id === selectedCrew.value.id)
+        if (updated) selectedCrew.value = updated
+      }
     }
   } catch (e) {
     console.error('크루 목록 로딩 실패:', e)
   }
+}
+
+const openCrewDetail = (crew) => {
+  selectedCrew.value = crew
+  showDetailDialog.value = true
+}
+
+const isMember = (crew) => {
+  if (!props.currentUser || !crew) return false
+  return crew.members.some(m => m.user_id === props.currentUser.id)
 }
 
 const joinCrew = async (crewId) => {
@@ -37,8 +66,10 @@ const joinCrew = async (crewId) => {
       method: 'POST'
     })
     if (res.ok) {
-      alert('크루에 가입되었습니다!')
       fetchCrews()
+    } else {
+      const data = await res.json()
+      alert(data.detail || '가입 실패')
     }
   } catch (e) {
     console.error('크루 가입 실패:', e)
@@ -53,7 +84,7 @@ const leaveCrew = async (crewId) => {
       method: 'POST'
     })
     if (res.ok) {
-      alert('크루에서 탈퇴되었습니다.')
+      showDetailDialog.value = false
       fetchCrews()
     }
   } catch (e) {
@@ -61,7 +92,6 @@ const leaveCrew = async (crewId) => {
   }
 }
 
-const showCreateDialog = ref(false)
 const newCrew = ref({
   name: '',
   description: ''
@@ -76,7 +106,6 @@ const createCrew = async () => {
       body: JSON.stringify(newCrew.value)
     })
     if (res.ok) {
-      alert('크루가 생성되었습니다!')
       showCreateDialog.value = false
       newCrew.value = { name: '', description: '' }
       fetchCrews()
@@ -86,122 +115,248 @@ const createCrew = async () => {
   }
 }
 
+const formatDate = (dateStr) => {
+  const date = new Date(dateStr)
+  return `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`
+}
+
 onMounted(fetchCrews)
 
 </script>
 
 <template>
   <div class="crew-container animate-fade-in py-4">
+    <!-- 헤더 섹션 -->
     <div class="d-flex align-center justify-space-between mb-6">
-      <h2 class="text-h5 font-weight-black text-primary">러닝 크루 🤝</h2>
+      <div>
+        <h2 class="text-h5 font-weight-black text-primary">러닝 크루 🤝</h2>
+        <p class="text-caption text-grey">함께 달리면 즐거움이 두 배가 됩니다</p>
+      </div>
       <VBtn 
         color="primary" 
         prepend-icon="mdi-plus" 
         rounded="xl" 
-        variant="flat"
+        variant="elevated"
+        elevation="4"
         @click="showCreateDialog = true"
       >크루 만들기</VBtn>
     </div>
 
+    <!-- 검색 바 -->
+    <VTextField
+      v-model="searchQuery"
+      placeholder="크루 이름 또는 설명으로 검색"
+      variant="outlined"
+      rounded="xl"
+      density="comfortable"
+      hide-details
+      prepend-inner-icon="mdi-magnify"
+      class="mb-8 bg-white"
+    />
+
     <!-- 내 크루 섹션 -->
-    <div class="mb-8" v-if="myCrews.length > 0">
+    <div class="mb-10" v-if="myCrews.length > 0">
       <h3 class="text-subtitle-1 font-weight-bold mb-4 d-flex align-center">
-        <VIcon icon="mdi-account-group" class="mr-2" color="primary" /> 내 크루
+        <VIcon icon="mdi-star" class="mr-2" color="warning" /> 내가 활동 중인 크루
       </h3>
-      <VCard v-for="crew in myCrews" :key="crew.id" flat class="crew-card rounded-xl border mb-4 pa-4 overflow-hidden">
-        <div class="d-flex align-start">
-          <VAvatar color="primary-lighten-4" size="64" rounded="lg" class="mr-4">
-            <VIcon icon="mdi-account-group" color="primary" size="32" />
-          </VAvatar>
-          <div class="flex-grow-1">
-            <div class="d-flex align-center justify-space-between">
-              <h4 class="text-h6 font-weight-bold">{{ crew.name }}</h4>
-              <VChip size="x-small" color="primary" variant="flat">{{ crew.member_count }}명 참여 중</VChip>
+      <VRow>
+        <VCol v-for="crew in myCrews" :key="crew.id" cols="12" sm="6">
+          <VCard flat class="crew-card active-crew rounded-xl border pa-4 overflow-hidden shadow-sm" @click="openCrewDetail(crew)">
+            <div class="d-flex align-start">
+              <VAvatar color="primary-lighten-5" size="64" rounded="lg" class="mr-4 border">
+                <VIcon icon="mdi-account-group" color="primary" size="32" />
+              </VAvatar>
+              <div class="flex-grow-1">
+                <div class="d-flex align-center justify-space-between mb-1">
+                  <h4 class="text-h6 font-weight-bold text-truncate">{{ crew.name }}</h4>
+                  <VChip size="x-small" color="primary" variant="flat" class="font-weight-bold">{{ crew.member_count }}명</VChip>
+                </div>
+                <p class="text-caption text-grey line-clamp-1 mb-3">{{ crew.description }}</p>
+                <VBtn 
+                  block
+                  color="error" 
+                  variant="flat" 
+                  rounded="lg" 
+                  size="small" 
+                  prepend-icon="mdi-map-marker-radius"
+                  class="font-weight-bold"
+                  @click.stop="emit('open-crew-map', crew)"
+                >실시간 위치 보기</VBtn>
+              </div>
             </div>
-            <p class="text-body-2 text-grey mb-3">{{ crew.description }}</p>
-            <div class="d-flex gap-2">
-              <VBtn 
-                color="error" 
-                variant="flat" 
-                rounded="lg" 
-                size="small" 
-                prepend-icon="mdi-map-marker-radius"
-                @click="emit('open-crew-map', crew)"
-              >크루 위치 확인</VBtn>
-              <VBtn 
-                color="grey" 
-                variant="tonal" 
-                rounded="lg" 
-                size="small"
-                @click="leaveCrew(crew.id)"
-              >탈퇴</VBtn>
-            </div>
-          </div>
-        </div>
-      </VCard>
+          </VCard>
+        </VCol>
+      </VRow>
     </div>
 
-    <VDivider class="mb-8" />
+    <VDivider class="mb-8" v-if="myCrews.length > 0" />
 
-    <!-- 전체 크루 섹션 -->
+    <!-- 탐색 섹션 -->
     <div>
-      <h3 class="text-subtitle-1 font-weight-bold mb-4">새로운 크루 탐색</h3>
+      <h3 class="text-subtitle-1 font-weight-bold mb-4 d-flex align-center">
+        <VIcon icon="mdi-compass-outline" class="mr-2" color="primary" /> 새로운 크루 탐색
+      </h3>
       <VRow>
-        <VCol v-for="crew in otherCrews" :key="crew.id" cols="12" sm="6">
-          <VCard flat class="rounded-xl border pa-4 h-100">
-            <div class="d-flex align-center mb-2">
-              <VAvatar color="grey-lighten-4" size="48" rounded="lg" class="mr-3">
+        <VCol v-for="crew in otherCrews" :key="crew.id" cols="12" sm="6" md="4">
+          <VCard flat class="crew-card rounded-xl border pa-4 h-100 shadow-sm" @click="openCrewDetail(crew)">
+            <div class="d-flex align-center mb-3">
+              <VAvatar color="grey-lighten-4" size="52" rounded="lg" class="mr-3">
                 <VIcon icon="mdi-account-group-outline" color="grey" />
               </VAvatar>
-              <div>
-                <div class="font-weight-bold">{{ crew.name }}</div>
+              <div class="overflow-hidden">
+                <div class="font-weight-bold text-truncate">{{ crew.name }}</div>
                 <div class="text-caption text-grey">{{ crew.member_count }}명의 멤버</div>
               </div>
             </div>
-            <p class="text-caption text-grey mb-4 line-clamp-2">{{ crew.description }}</p>
+            <p class="text-body-2 text-grey mb-4 line-clamp-2 h-40">{{ crew.description }}</p>
             <VBtn 
               block 
               color="primary" 
               variant="tonal" 
               rounded="lg" 
               size="small"
-              @click="joinCrew(crew.id)"
-            >가입하기</VBtn>
+              class="font-weight-bold"
+            >상세보기</VBtn>
           </VCard>
         </VCol>
       </VRow>
-      <div v-if="otherCrews.length === 0 && myCrews.length === 0" class="text-center py-12">
-        <VIcon icon="mdi-account-group-outline" size="48" color="grey-lighten-2" class="mb-2" />
-        <p class="text-grey">아직 생성된 크루가 없습니다.<br>첫 번째 크루를 만들어보세요!</p>
+      
+      <div v-if="filteredCrews.length === 0" class="text-center py-16 bg-grey-lighten-5 rounded-xl border-dashed">
+        <VIcon icon="mdi-account-group-outline" size="64" color="grey-lighten-2" class="mb-4" />
+        <p class="text-body-1 text-grey-darken-1 font-weight-bold">찾으시는 크루가 없나요?</p>
+        <p class="text-caption text-grey mb-6">직접 새로운 크루를 만들어 멤버를 모집해보세요!</p>
+        <VBtn color="primary" variant="flat" rounded="xl" @click="showCreateDialog = true">첫 크루 만들기</VBtn>
       </div>
     </div>
 
-    <!-- 크루 생성 다이얼로그 -->
-    <VDialog v-model="showCreateDialog" max-width="400">
-      <VCard class="rounded-xl pa-4">
-        <VCardTitle class="text-h6 font-weight-black">새로운 크루 만들기</VCardTitle>
-        <VCardText class="pa-0 pt-4">
-          <VTextField
-            v-model="newCrew.name"
-            label="크루 이름"
-            variant="outlined"
-            rounded="lg"
-            class="mb-4"
-            hide-details
-          />
-          <VTextarea
-            v-model="newCrew.description"
-            label="크루 설명"
-            variant="outlined"
-            rounded="lg"
-            rows="3"
-            hide-details
-          />
+    <!-- 크루 상세 다이얼로그 -->
+    <VDialog v-model="showDetailDialog" max-width="500" transition="dialog-bottom-transition">
+      <VCard class="rounded-xl overflow-hidden" v-if="selectedCrew">
+        <div class="crew-detail-header pa-6 bg-primary text-white position-relative">
+          <VBtn icon="mdi-close" variant="text" color="white" class="position-absolute" style="top: 10px; right: 10px" @click="showDetailDialog = false" />
+          <div class="d-flex align-center mb-4">
+            <VAvatar color="white" size="72" rounded="lg" class="mr-4">
+              <VIcon icon="mdi-account-group" color="primary" size="40" />
+            </VAvatar>
+            <div>
+              <h3 class="text-h5 font-weight-black">{{ selectedCrew.name }}</h3>
+              <div class="text-caption opacity-80">생성일: {{ formatDate(selectedCrew.created_at) }}</div>
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <VChip size="small" color="white" variant="flat" class="text-primary font-weight-bold">{{ selectedCrew.member_count }}명 참여 중</VChip>
+          </div>
+        </div>
+
+        <VCardText class="pa-6">
+          <div class="mb-8">
+            <h4 class="text-subtitle-1 font-weight-bold mb-2">크루 소개</h4>
+            <p class="text-body-2 text-grey-darken-2" style="line-height: 1.6">{{ selectedCrew.description }}</p>
+          </div>
+
+          <div>
+            <h4 class="text-subtitle-1 font-weight-bold mb-4 d-flex align-center justify-space-between">
+              멤버 목록
+              <span class="text-caption text-grey font-weight-medium">최근 가입순</span>
+            </h4>
+            <div class="member-list">
+              <div v-for="member in selectedCrew.members" :key="member.user_id" class="d-flex align-center mb-3 pa-2 rounded-lg bg-grey-lighten-5">
+                <VAvatar :color="member.profile_image ? 'transparent' : 'primary-lighten-4'" size="40" class="mr-3">
+                  <img v-if="member.profile_image" :src="member.profile_image" alt="Member" style="width:100%; height:100%; object-fit:cover;">
+                  <span v-else class="text-caption font-weight-bold">{{ member.name[0] }}</span>
+                </VAvatar>
+                <div class="flex-grow-1">
+                  <div class="text-body-2 font-weight-bold">{{ member.name }}</div>
+                  <div class="text-caption text-grey">{{ formatDate(member.joined_at) }} 가입</div>
+                </div>
+                <VIcon v-if="member.user_id === currentUser?.id" icon="mdi-check-circle" color="primary" size="20" />
+              </div>
+            </div>
+          </div>
         </VCardText>
-        <VCardActions class="px-0 pt-6">
-          <VSpacer />
-          <VBtn variant="text" color="grey" @click="showCreateDialog = false">취소</VBtn>
-          <VBtn color="primary" variant="flat" rounded="lg" class="px-6" @click="createCrew">생성하기</VBtn>
+
+        <VCardActions class="pa-6 pt-0">
+          <template v-if="isMember(selectedCrew)">
+            <VBtn 
+              block 
+              color="error" 
+              variant="flat" 
+              rounded="xl" 
+              size="large" 
+              prepend-icon="mdi-map-marker-radius"
+              class="mb-3 font-weight-bold"
+              @click="emit('open-crew-map', selectedCrew); showDetailDialog = false"
+            >실시간 크루 위치 보기</VBtn>
+            <VBtn 
+              block 
+              color="grey" 
+              variant="tonal" 
+              rounded="xl"
+              class="font-weight-bold"
+              @click="leaveCrew(selectedCrew.id)"
+            >크루 탈퇴하기</VBtn>
+          </template>
+          <VBtn 
+            v-else 
+            block 
+            color="primary" 
+            variant="flat" 
+            rounded="xl" 
+            size="large"
+            class="font-weight-bold"
+            @click="joinCrew(selectedCrew.id)"
+          >크루 가입하기</VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- 크루 생성 다이얼로그 -->
+    <VDialog v-model="showCreateDialog" max-width="450">
+      <VCard class="rounded-xl overflow-hidden">
+        <VToolbar color="primary" flat>
+          <VToolbarTitle class="text-h6 font-weight-black text-white">새로운 크루 만들기</VToolbarTitle>
+          <VBtn icon="mdi-close" color="white" @click="showCreateDialog = false" />
+        </VToolbar>
+        <VCardText class="pa-6">
+          <div class="mb-6">
+            <label class="text-subtitle-2 font-weight-bold mb-2 d-block">크루 이름</label>
+            <VTextField
+              v-model="newCrew.name"
+              placeholder="예: 강남 새벽 러닝 크루"
+              variant="outlined"
+              rounded="lg"
+              hide-details
+              color="primary"
+            />
+          </div>
+          <div class="mb-2">
+            <label class="text-subtitle-2 font-weight-bold mb-2 d-block">크루 소개</label>
+            <VTextarea
+              v-model="newCrew.description"
+              placeholder="크루의 활동 시간, 장소, 목표 등을 자유롭게 적어주세요!"
+              variant="outlined"
+              rounded="lg"
+              rows="4"
+              hide-details
+              color="primary"
+            />
+          </div>
+          <p class="text-caption text-grey mt-2">
+            <VIcon icon="mdi-information-outline" size="14" class="mr-1" />
+            크루를 생성하면 자동으로 첫 번째 멤버로 등록됩니다.
+          </p>
+        </VCardText>
+        <VCardActions class="pa-6 pt-0">
+          <VBtn 
+            block 
+            color="primary" 
+            variant="flat" 
+            rounded="xl" 
+            size="large" 
+            class="font-weight-bold"
+            :disabled="!newCrew.name"
+            @click="createCrew"
+          >크루 생성 완료</VBtn>
         </VCardActions>
       </VCard>
     </VDialog>
@@ -210,15 +365,39 @@ onMounted(fetchCrews)
 
 <style scoped>
 .crew-card {
-  transition: transform 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
 }
 .crew-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1) !important;
+}
+.active-crew {
+  background: linear-gradient(to bottom right, #ffffff, #f9f9ff);
+}
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.h-40 {
+  height: 40px;
+}
+.border-dashed {
+  border: 2px dashed #e0e0e0 !important;
+}
+.member-list {
+  max-height: 250px;
+  overflow-y: auto;
+}
+.gap-2 {
+  gap: 8px;
 }
 </style>
