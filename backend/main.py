@@ -444,13 +444,30 @@ def get_crews(db: Session = Depends(get_db)):
     db_crews = db.query(models.Crew).all()
     result = []
     for crew in db_crews:
+        accepted_members = [m for m in crew.members if m.status == "accepted"]
+        pending_members = [m for m in crew.members if m.status == "pending"]
+        
+        # 멤버 정보 매핑 (수락된 멤버)
         members_list = []
-        for m in crew.members:
+        for m in accepted_members:
             if m.user:
                 members_list.append({
                     "user_id": m.user.id,
                     "name": m.user.name,
                     "profile_image": m.user.profile_image,
+                    "status": m.status,
+                    "joined_at": m.joined_at
+                })
+        
+        # 신청 중인 멤버 (리더에게만 보여주기 위해 정보 포함)
+        pending_list = []
+        for m in pending_members:
+            if m.user:
+                pending_list.append({
+                    "user_id": m.user.id,
+                    "name": m.user.name,
+                    "profile_image": m.user.profile_image,
+                    "status": m.status,
                     "joined_at": m.joined_at
                 })
         
@@ -459,9 +476,11 @@ def get_crews(db: Session = Depends(get_db)):
             "name": crew.name,
             "description": crew.description,
             "image": crew.image,
+            "leader_id": crew.leader_id,
             "created_at": crew.created_at,
-            "member_count": len(crew.members),
-            "members": members_list
+            "member_count": len(accepted_members),
+            "members": members_list,
+            "pending_members": pending_list
         })
     return result
 
@@ -471,14 +490,15 @@ def create_crew(crew_data: schemas.CrewCreate, user_id: int, db: Session = Depen
     db_crew = models.Crew(
         name=crew_data.name,
         description=crew_data.description,
-        image=crew_data.image
+        image=crew_data.image,
+        leader_id=user_id
     )
     db.add(db_crew)
     db.commit()
     db.refresh(db_crew)
     
-    # 2. 생성자를 멤버로 추가
-    member = models.CrewMember(crew_id=db_crew.id, user_id=user_id)
+    # 2. 생성자를 멤버로 추가 (자동 수락)
+    member = models.CrewMember(crew_id=db_crew.id, user_id=user_id, status="accepted")
     db.add(member)
     db.commit()
     db.refresh(db_crew)
@@ -490,6 +510,7 @@ def create_crew(crew_data: schemas.CrewCreate, user_id: int, db: Session = Depen
         "name": db_crew.name,
         "description": db_crew.description,
         "image": db_crew.image,
+        "leader_id": db_crew.leader_id,
         "created_at": db_crew.created_at,
         "member_count": 1,
         "members": [{
@@ -503,16 +524,60 @@ def create_crew(crew_data: schemas.CrewCreate, user_id: int, db: Session = Depen
 @app.post("/api/crews/{crew_id}/join")
 def join_crew(crew_id: int, user_id: int, db: Session = Depends(get_db)):
     existing = db.query(models.CrewMember).filter(
-        models.CrewMember.crew_id == crew_id,
+        models.CrewMember.crew_id == crew_id, 
         models.CrewMember.user_id == user_id
     ).first()
     if existing:
-        raise HTTPException(status_code=400, detail="이미 가입된 크루입니다.")
+        if existing.status == "pending":
+            raise HTTPException(status_code=400, detail="이미 가입 신청 중입니다.")
+        raise HTTPException(status_code=400, detail="이미 가입된 멤버입니다.")
     
-    member = models.CrewMember(crew_id=crew_id, user_id=user_id)
+    # 가입 신청 (pending 상태)
+    member = models.CrewMember(crew_id=crew_id, user_id=user_id, status="pending")
     db.add(member)
     db.commit()
-    return {"message": "크루에 가입되었습니다."}
+    return {"message": "가입 신청이 완료되었습니다. 크루장의 승인을 기다려주세요."}
+
+@app.post("/api/crews/{crew_id}/approve/{member_id}")
+def approve_crew_member(crew_id: int, member_id: int, leader_id: int, db: Session = Depends(get_db)):
+    # 리더 권한 확인
+    crew = db.query(models.Crew).filter(models.Crew.id == crew_id).first()
+    if not crew or crew.leader_id != leader_id:
+        raise HTTPException(status_code=403, detail="권한이 없습니다.")
+    
+    member = db.query(models.CrewMember).filter(
+        models.CrewMember.crew_id == crew_id,
+        models.CrewMember.user_id == member_id
+    ).first()
+    
+    if not member:
+        raise HTTPException(status_code=404, detail="신청 내역을 찾을 수 없습니다.")
+        
+    member.status = "accepted"
+    db.commit()
+    return {"message": "가입 신청이 수락되었습니다."}
+
+@app.post("/api/crews/{crew_id}/kick/{member_id}")
+def kick_crew_member(crew_id: int, member_id: int, leader_id: int, db: Session = Depends(get_db)):
+    # 리더 권한 확인
+    crew = db.query(models.Crew).filter(models.Crew.id == crew_id).first()
+    if not crew or crew.leader_id != leader_id:
+        raise HTTPException(status_code=403, detail="권한이 없습니다.")
+    
+    if member_id == leader_id:
+        raise HTTPException(status_code=400, detail="크루장 자신은 내보낼 수 없습니다.")
+        
+    member = db.query(models.CrewMember).filter(
+        models.CrewMember.crew_id == crew_id,
+        models.CrewMember.user_id == member_id
+    ).first()
+    
+    if not member:
+        raise HTTPException(status_code=404, detail="멤버를 찾을 수 없습니다.")
+        
+    db.delete(member)
+    db.commit()
+    return {"message": "멤버를 내보냈습니다."}
 
 @app.post("/api/crews/{crew_id}/leave")
 def leave_crew(crew_id: int, user_id: int, db: Session = Depends(get_db)):

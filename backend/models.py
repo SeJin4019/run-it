@@ -104,8 +104,10 @@ class Crew(Base):
     name = Column(String, index=True)
     description = Column(String)
     image = Column(String, nullable=True)
+    leader_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
+    leader = relationship("User")
     members = relationship("CrewMember", back_populates="crew", cascade="all, delete-orphan")
 
 class CrewMember(Base):
@@ -113,6 +115,7 @@ class CrewMember(Base):
     id = Column(Integer, primary_key=True, index=True)
     crew_id = Column(Integer, ForeignKey("crews.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
+    status = Column(String, default="accepted") # pending, accepted
     joined_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     crew = relationship("Crew", back_populates="members")

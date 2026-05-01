@@ -66,6 +66,8 @@ const joinCrew = async (crewId) => {
       method: 'POST'
     })
     if (res.ok) {
+      const data = await res.json()
+      alert(data.message)
       fetchCrews()
     } else {
       const data = await res.json()
@@ -92,10 +94,45 @@ const leaveCrew = async (crewId) => {
   }
 }
 
+const approveMember = async (crewId, memberId) => {
+  try {
+    const res = await fetch(`${props.apiUrl}/crews/${crewId}/approve/${memberId}?leader_id=${props.currentUser.id}`, {
+      method: 'POST'
+    })
+    if (res.ok) {
+      fetchCrews()
+    }
+  } catch (e) {
+    console.error('가입 승인 실패:', e)
+  }
+}
+
+const kickMember = async (crewId, memberId) => {
+  if (!confirm('정말 이 멤버를 내보내시겠습니까?')) return
+  try {
+    const res = await fetch(`${props.apiUrl}/crews/${crewId}/kick/${memberId}?leader_id=${props.currentUser.id}`, {
+      method: 'POST'
+    })
+    if (res.ok) {
+      fetchCrews()
+    }
+  } catch (e) {
+    console.error('멤버 추방 실패:', e)
+  }
+}
+
 const newCrew = ref({
   name: '',
   description: ''
 })
+
+const preset_images = [
+  "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=500&q=80",
+  "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=500&q=80",
+  "https://images.unsplash.com/photo-1447452030438-65c287a73e4b?w=500&q=80",
+  "https://images.unsplash.com/photo-1513594335400-9482457ad9aa?w=500&q=80",
+  "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=500&q=80"
+]
 
 const createCrew = async () => {
   if (!newCrew.value.name) return
@@ -107,7 +144,7 @@ const createCrew = async () => {
     })
     if (res.ok) {
       showCreateDialog.value = false
-      newCrew.value = { name: '', description: '' }
+      newCrew.value = { name: '', description: '', image: preset_images[0] }
       fetchCrews()
     }
   } catch (e) {
@@ -192,22 +229,26 @@ onMounted(fetchCrews)
     <VDivider class="mb-10" v-if="myCrews.length > 0" />
 
     <!-- 탐색 섹션 -->
-    <div class="exploration-section">
-      <div class="d-flex align-center mb-6">
-        <div class="exploration-icon-box mr-3">
-          <VIcon icon="mdi-compass-outline" color="white" size="20" />
-        </div>
-        <div>
-          <h3 class="text-h6 font-weight-black">새로운 크루 탐색</h3>
-          <p class="text-caption text-grey">나와 딱 맞는 러닝 메이트를 찾아보세요</p>
+    <div class="exploration-section px-1">
+      <div class="exploration-header pa-4 rounded-xl mb-6 text-white position-relative overflow-hidden">
+        <div class="header-overlay-dark"></div>
+        <div class="position-relative d-flex align-center" style="z-index: 1;">
+          <div class="exploration-icon-box mr-4">
+            <VIcon icon="mdi-compass-outline" color="white" size="24" />
+          </div>
+          <div>
+            <h3 class="text-h6 font-weight-black">지구촌 러닝 크루 탐색 🌍</h3>
+            <p class="text-caption opacity-90">당신에게 딱 맞는 러닝 메이트와 함께 달리세요</p>
+          </div>
         </div>
       </div>
       <VRow>
         <VCol v-for="crew in otherCrews" :key="crew.id" cols="12" sm="6" md="4">
           <VCard flat class="crew-card rounded-xl border pa-4 h-100 shadow-sm" @click="openCrewDetail(crew)">
             <div class="d-flex align-center mb-3">
-              <VAvatar color="grey-lighten-4" size="52" rounded="lg" class="mr-3">
-                <VIcon icon="mdi-account-group-outline" color="grey" />
+              <VAvatar color="grey-lighten-4" size="52" rounded="lg" class="mr-3 overflow-hidden">
+                <img v-if="crew.image" :src="crew.image" alt="Crew" style="width:100%; height:100%; object-fit:cover;">
+                <VIcon v-else icon="mdi-account-group-outline" color="grey" />
               </VAvatar>
               <div class="overflow-hidden">
                 <div class="font-weight-bold text-truncate">{{ crew.name }}</div>
@@ -238,23 +279,53 @@ onMounted(fetchCrews)
     <!-- 크루 상세 다이얼로그 -->
     <VDialog v-model="showDetailDialog" max-width="500" transition="dialog-bottom-transition">
       <VCard class="rounded-xl overflow-hidden" v-if="selectedCrew">
-        <div class="crew-detail-header pa-6 bg-primary text-white position-relative">
-          <VBtn icon="mdi-close" variant="text" color="white" class="position-absolute" style="top: 10px; right: 10px" @click="showDetailDialog = false" />
-          <div class="d-flex align-center mb-4">
-            <VAvatar color="white" size="72" rounded="lg" class="mr-4">
-              <VIcon icon="mdi-account-group" color="primary" size="40" />
-            </VAvatar>
-            <div>
-              <h3 class="text-h5 font-weight-black">{{ selectedCrew.name }}</h3>
-              <div class="text-caption opacity-80">생성일: {{ formatDate(selectedCrew.created_at) }}</div>
+        <div class="crew-detail-header pa-6 bg-primary text-white position-relative overflow-hidden">
+          <!-- 헤더 배경 이미지 (있을 경우) -->
+          <div v-if="selectedCrew.image" class="header-bg-image" :style="{ backgroundImage: `url(${selectedCrew.image})` }"></div>
+          <div class="header-overlay"></div>
+
+          <VBtn icon="mdi-close" variant="text" color="white" class="position-absolute" style="top: 10px; right: 10px; z-index: 2;" @click="showDetailDialog = false" />
+          
+          <div class="position-relative" style="z-index: 1;">
+            <div class="d-flex align-center mb-4">
+              <VAvatar color="white" size="72" rounded="lg" class="mr-4 shadow-lg overflow-hidden">
+                <img v-if="selectedCrew.image" :src="selectedCrew.image" alt="Crew" style="width:100%; height:100%; object-fit:cover;">
+                <VIcon v-else icon="mdi-account-group" color="primary" size="40" />
+              </VAvatar>
+              <div>
+                <h3 class="text-h5 font-weight-black">{{ selectedCrew.name }}</h3>
+                <div class="text-caption opacity-90">생성일: {{ formatDate(selectedCrew.created_at) }}</div>
+              </div>
             </div>
-          </div>
-          <div class="d-flex gap-2">
-            <VChip size="small" color="white" variant="flat" class="text-primary font-weight-bold">{{ selectedCrew.member_count }}명 참여 중</VChip>
+            <div class="d-flex gap-2">
+              <VChip size="small" color="white" variant="flat" class="text-primary font-weight-bold">{{ selectedCrew.member_count }}명 참여 중</VChip>
+            </div>
           </div>
         </div>
 
+
         <VCardText class="pa-6">
+          <!-- 가입 신청 대기 목록 (리더 전용) -->
+          <div v-if="selectedCrew.leader_id === currentUser?.id && selectedCrew.pending_members?.length > 0" class="mb-8">
+            <h4 class="text-subtitle-1 font-weight-bold mb-4 d-flex align-center text-primary">
+              <VIcon icon="mdi-account-clock" class="mr-2" /> 가입 신청 대기 ({{ selectedCrew.pending_members.length }})
+            </h4>
+            <div v-for="pending in selectedCrew.pending_members" :key="pending.user_id" class="d-flex align-center mb-3 pa-3 rounded-xl bg-primary-lighten-5 border">
+              <VAvatar size="36" class="mr-3">
+                <img v-if="pending.profile_image" :src="pending.profile_image" style="width:100%; height:100%; object-fit:cover;">
+                <VIcon v-else icon="mdi-account" color="primary" />
+              </VAvatar>
+              <div class="flex-grow-1 overflow-hidden">
+                <div class="text-body-2 font-weight-bold text-truncate">{{ pending.name }}</div>
+              </div>
+              <div class="d-flex gap-1">
+                <VBtn size="x-small" color="primary" variant="flat" rounded="lg" @click="approveMember(selectedCrew.id, pending.user_id)">승인</VBtn>
+                <VBtn size="x-small" color="grey" variant="tonal" rounded="lg" @click="kickMember(selectedCrew.id, pending.user_id)">거절</VBtn>
+              </div>
+            </div>
+            <VDivider class="mt-4" />
+          </div>
+
           <div class="mb-8">
             <h4 class="text-subtitle-1 font-weight-bold mb-2">크루 소개</h4>
             <p class="text-body-2 text-grey-darken-2" style="line-height: 1.6">{{ selectedCrew.description }}</p>
@@ -272,10 +343,25 @@ onMounted(fetchCrews)
                   <span v-else class="text-caption font-weight-bold">{{ member.name[0] }}</span>
                 </VAvatar>
                 <div class="flex-grow-1">
-                  <div class="text-body-2 font-weight-bold">{{ member.name }}</div>
+                  <div class="d-flex align-center">
+                    <div class="text-body-2 font-weight-bold">{{ member.name }}</div>
+                    <VChip v-if="member.user_id === selectedCrew.leader_id" size="x-small" color="warning" class="ml-2 px-2" variant="flat">
+                      <VIcon icon="mdi-crown" size="10" class="mr-1" /> 크루장
+                    </VChip>
+                  </div>
                   <div class="text-caption text-grey">{{ formatDate(member.joined_at) }} 가입</div>
                 </div>
-                <VIcon v-if="member.user_id === currentUser?.id" icon="mdi-check-circle" color="primary" size="20" />
+                <div class="d-flex align-center">
+                  <VIcon v-if="member.user_id === currentUser?.id" icon="mdi-check-circle" color="primary" size="20" class="mr-1" />
+                  <VBtn 
+                    v-if="selectedCrew.leader_id === currentUser?.id && member.user_id !== currentUser?.id" 
+                    icon="mdi-account-remove" 
+                    variant="text" 
+                    color="grey-lighten-1" 
+                    size="x-small" 
+                    @click.stop="kickMember(selectedCrew.id, member.user_id)" 
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -335,6 +421,22 @@ onMounted(fetchCrews)
               color="primary"
             />
           </div>
+          <div class="mb-6">
+            <label class="text-subtitle-2 font-weight-bold mb-2 d-block">크루 이미지 선택</label>
+            <div class="d-flex overflow-x-auto gap-2 pb-2">
+              <VAvatar 
+                v-for="img in preset_images" 
+                :key="img" 
+                size="60" 
+                rounded="lg" 
+                class="cursor-pointer border-2"
+                :class="newCrew.image === img ? 'border-primary' : 'border-transparent'"
+                @click="newCrew.image = img"
+              >
+                <img :src="img" style="width:100%; height:100%; object-fit:cover;">
+              </VAvatar>
+            </div>
+          </div>
           <div class="mb-2">
             <label class="text-subtitle-2 font-weight-bold mb-2 d-block">크루 소개</label>
             <VTextarea
@@ -383,13 +485,26 @@ onMounted(fetchCrews)
 }
 .exploration-icon-box {
   background: linear-gradient(135deg, #ff4b2b, #ff8a3d);
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   display: flex;
-  align-center: center;
+  align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(255, 75, 43, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 4px 10px rgba(255, 75, 43, 0.3);
+}
+.exploration-header {
+  background: linear-gradient(135deg, #2c3e50, #4ca1af);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+.header-overlay-dark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.1);
+  z-index: 0;
 }
 .line-clamp-1 {
   display: -webkit-box;
@@ -415,5 +530,25 @@ onMounted(fetchCrews)
 }
 .gap-2 {
   gap: 8px;
+}
+.header-bg-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(5px) brightness(0.7);
+  transform: scale(1.1);
+}
+.header-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom, rgba(255, 75, 43, 0.4), rgba(255, 75, 43, 0.8));
+  z-index: 1;
 }
 </style>
