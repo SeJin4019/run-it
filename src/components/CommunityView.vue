@@ -8,10 +8,11 @@ const props = defineProps({
   globalRecords: Array,
   liveFriends: Array,
   pendingRequests: Array,
+  pendingCrewRequests: Array,
   apiUrl: String
 })
 
-const emit = defineEmits(['open-profile', 'add-friend-by-email', 'accept-request', 'decline-request', 'open-live-map', 'open-crew-map', 'refresh'])
+const emit = defineEmits(['open-profile', 'add-friend-by-email', 'accept-request', 'decline-request', 'open-live-map', 'open-crew-map', 'approve-crew-member', 'kick-crew-member', 'refresh'])
 
 const searchEmail = ref('')
 const isAdding = ref(false)
@@ -194,6 +195,29 @@ const openMap = (friend) => {
               </VBtn>
             </template>
           </VTextField>
+        </div>
+
+        <!-- 크루 가입 요청 알림 (리더 전용) -->
+        <div v-if="pendingCrewRequests && pendingCrewRequests.length > 0" class="mb-8">
+          <h3 class="text-subtitle-1 font-weight-bold mb-3 d-flex align-center text-error">
+            <VIcon icon="mdi-crown" class="mr-2" /> 크루 가입 신청 ({{ pendingCrewRequests.length }})
+          </h3>
+          <VCard v-for="req in pendingCrewRequests" :key="req.user_id + req.crew_id" flat class="rounded-xl border pa-4 mb-3 bg-red-lighten-5">
+            <div class="d-flex align-center">
+              <VAvatar :color="req.profile_image ? 'transparent' : 'error-lighten-4'" size="40" class="mr-3">
+                <img v-if="req.profile_image" :src="req.profile_image" alt="Profile" style="width:100%; height:100%; object-fit:cover;">
+                <span v-else class="text-caption font-weight-bold">{{ req.name[0] }}</span>
+              </VAvatar>
+              <div class="flex-grow-1 overflow-hidden">
+                <div class="font-weight-bold text-truncate">{{ req.name }}</div>
+                <div class="text-caption text-grey text-truncate"><b>{{ req.crew_name }}</b> 크루 가입 요청</div>
+              </div>
+              <div class="d-flex gap-2">
+                <VBtn size="small" color="error" variant="flat" rounded="lg" @click="emit('approve-crew-member', req.crew_id, req.user_id)">승인</VBtn>
+                <VBtn size="small" color="grey" variant="tonal" rounded="lg" @click="emit('kick-crew-member', req.crew_id, req.user_id)">거절</VBtn>
+              </div>
+            </div>
+          </VCard>
         </div>
 
         <!-- 친구 요청 목록 -->

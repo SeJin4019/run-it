@@ -152,7 +152,20 @@ const createCrew = async () => {
   }
 }
 
-const formatDate = (dateStr) => {
+const deleteCrew = async (crewId) => {
+  if (!confirm('정말 크루를 삭제하시겠습니까? 모든 정보와 멤버 기록이 사라집니다.')) return
+  try {
+    const res = await fetch(`${props.apiUrl}/crews/${crewId}?user_id=${props.currentUser.id}`, {
+      method: 'DELETE'
+    })
+    if (res.ok) {
+      showDetailDialog.value = false
+      fetchCrews()
+    }
+  } catch (e) {
+    console.error('크루 삭제 실패:', e)
+  }
+}
   const date = new Date(dateStr)
   return `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`
 }
@@ -379,7 +392,19 @@ onMounted(fetchCrews)
               class="mb-3 font-weight-bold"
               @click="emit('open-crew-map', selectedCrew); showDetailDialog = false"
             >실시간 크루 위치 보기</VBtn>
+            
             <VBtn 
+              v-if="selectedCrew.leader_id === currentUser?.id"
+              block 
+              color="error" 
+              variant="tonal" 
+              rounded="xl"
+              class="font-weight-bold"
+              @click="deleteCrew(selectedCrew.id)"
+            >크루 삭제하기 (크루장)</VBtn>
+            
+            <VBtn 
+              v-else
               block 
               color="grey" 
               variant="tonal" 

@@ -39,6 +39,35 @@ const handleUpdateUser = (updatedUser) => {
   }
 }
 
+// 크루 멤버 승인/강퇴 처리 (글로벌)
+const handleApproveCrewMember = async (crewId, memberId) => {
+  try {
+    const res = await fetch(`${API_URL}/crews/${crewId}/approve/${memberId}?leader_id=${currentUser.value.id}`, {
+      method: 'POST'
+    })
+    if (res.ok) {
+      refreshData()
+    }
+  } catch (e) {
+    console.error('크루 가입 승인 실패:', e)
+  }
+}
+
+const handleKickCrewMember = async (crewId, memberId) => {
+  if (!confirm('정말 처리하시겠습니까?')) return
+  try {
+    const res = await fetch(`${API_URL}/crews/${crewId}/kick/${memberId}?leader_id=${currentUser.value.id}`, {
+      method: 'POST'
+    })
+    if (res.ok) {
+      refreshData()
+    }
+  } catch (e) {
+    console.error('크루 멤버 처리 실패:', e)
+  }
+}
+
+// ----------------------------------------------------------------------------
 // 화면 전환
 const currentView = ref('discover') // 'discover', 'recommend', 'create', 'detail', 'record', 'history', 'shoes'
 const selectedDifficulty = ref('전체')
@@ -106,6 +135,20 @@ const updateCourseLikeStates = () => {
 const myRecords = computed(() => {
   if (!currentUser.value) return []
   return globalRecords.value.filter(r => r.user_id === currentUser.value.id)
+})
+
+// 내가 리더인 크루의 가입 신청 목록 모으기
+const allPendingCrewRequests = computed(() => {
+  if (!currentUser.value) return []
+  const requests = []
+  crews.value.forEach(crew => {
+    if (crew.leader_id === currentUser.value.id && crew.pending_members) {
+      crew.pending_members.forEach(p => {
+        requests.push({ ...p, crew_id: crew.id, crew_name: crew.name })
+      })
+    }
+  })
+  return requests
 })
 
 watch(currentView, (newView, oldView) => {
@@ -949,6 +992,7 @@ const goToCreate = () => {
             :global-records="globalRecords"
             :live-friends="liveFriends"
             :pending-requests="pendingRequests"
+            :pending-crew-requests="allPendingCrewRequests"
             :api-url="API_URL"
             @open-profile="openFriendProfile"
             @add-friend-by-email="handleAddFriendByEmail"
@@ -956,6 +1000,8 @@ const goToCreate = () => {
             @decline-request="handleDeclineRequest"
             @open-live-map="openFriendMap"
             @open-crew-map="openCrewMap"
+            @approve-crew-member="handleApproveCrewMember"
+            @kick-crew-member="handleKickCrewMember"
             @refresh="refreshData"
           />
         </div>

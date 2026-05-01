@@ -598,16 +598,36 @@ def kick_crew_member(crew_id: int, member_id: int, leader_id: int, db: Session =
 
 @app.post("/api/crews/{crew_id}/leave")
 def leave_crew(crew_id: int, user_id: int, db: Session = Depends(get_db)):
+    crew = db.query(models.Crew).filter(models.Crew.id == crew_id).first()
+    if not crew:
+        raise HTTPException(status_code=404, detail="크루를 찾을 수 없습니다.")
+        
+    if crew.leader_id == user_id:
+        raise HTTPException(status_code=400, detail="크루장은 탈퇴할 수 없습니다. 크루를 삭제해주세요.")
+        
     member = db.query(models.CrewMember).filter(
-        models.CrewMember.crew_id == crew_id,
+        models.CrewMember.crew_id == crew_id, 
         models.CrewMember.user_id == user_id
     ).first()
     if not member:
-        raise HTTPException(status_code=404, detail="가입되지 않은 크루입니다.")
+        raise HTTPException(status_code=404, detail="가입된 크루가 아닙니다.")
     
     db.delete(member)
     db.commit()
     return {"message": "크루에서 탈퇴되었습니다."}
+
+@app.delete("/api/crews/{crew_id}")
+def delete_crew(crew_id: int, user_id: int, db: Session = Depends(get_db)):
+    crew = db.query(models.Crew).filter(models.Crew.id == crew_id).first()
+    if not crew:
+        raise HTTPException(status_code=404, detail="크루를 찾을 수 없습니다.")
+        
+    if crew.leader_id != user_id:
+        raise HTTPException(status_code=403, detail="크루 삭제 권한이 없습니다.")
+        
+    db.delete(crew)
+    db.commit()
+    return {"message": "크루가 삭제되었습니다."}
 
 @app.get("/api/live/crews/{crew_id}")
 def get_crew_live_locations(crew_id: int, db: Session = Depends(get_db)):
