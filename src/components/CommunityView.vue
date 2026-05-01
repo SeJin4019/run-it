@@ -27,14 +27,46 @@ const handleAddFriend = () => {
 // 내 친구 목록
 const myFriends = computed(() => {
   if (!props.currentUser || !props.currentUser.friends) return []
-  return props.globalUsers.filter(u => props.currentUser.friends.includes(u.id))
+  
+  let friendIds = props.currentUser.friends
+  if (typeof friendIds === 'string') {
+    try {
+      friendIds = JSON.parse(friendIds)
+    } catch (e) {
+      friendIds = []
+    }
+  }
+  
+  const friendIdSet = new Set(friendIds.map(id => Number(id)))
+  return props.globalUsers.filter(u => friendIdSet.has(Number(u.id)))
 })
 
 // 추천 친구 (나와 내 친구를 제외한 나머지 사용자)
 const recommendedFriends = computed(() => {
   if (!props.currentUser) return props.globalUsers
-  const friendIds = props.currentUser.friends || []
-  return props.globalUsers.filter(u => u.id !== props.currentUser.id && !friendIds.includes(u.id))
+  
+  // 친구 ID 목록 가져오기 (JSON 문자열인 경우 파싱)
+  let friendIds = props.currentUser.friends || []
+  if (typeof friendIds === 'string') {
+    try {
+      friendIds = JSON.parse(friendIds)
+    } catch (e) {
+      friendIds = []
+    }
+  }
+  
+  // ID 비교를 위해 Number 타입으로 통일한 Set 생성
+  const friendIdSet = new Set(friendIds.map(id => Number(id)))
+  const currentUserId = Number(props.currentUser.id)
+  
+  // 나에게 온 친구 요청 목록의 ID들
+  const pendingIdSet = new Set((props.pendingRequests || []).map(req => Number(req.from_user_id)))
+  
+  // 이미 친구인 사람, 나 자신, 그리고 나에게 요청을 보낸 사람을 제외
+  return props.globalUsers.filter(u => {
+    const userId = Number(u.id)
+    return userId !== currentUserId && !friendIdSet.has(userId) && !pendingIdSet.has(userId)
+  })
 })
 
 const getUserLatestRecord = (userId) => {

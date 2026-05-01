@@ -939,7 +939,14 @@ const goToCreate = () => {
             :records="selectedFriendRecords"
             :shoes="selectedFriendShoes"
             :is-me="false"
-            :is-friend="currentUser?.friends?.includes(selectedFriend.id)"
+            :is-friend="(() => {
+              if (!currentUser || !currentUser.friends || !selectedFriend) return false;
+              let fIds = currentUser.friends;
+              if (typeof fIds === 'string') {
+                try { fIds = JSON.parse(fIds); } catch (e) { fIds = []; }
+              }
+              return Array.isArray(fIds) && fIds.map(Number).includes(Number(selectedFriend.id));
+            })()"
             @add-friend="handleAddFriend"
             @remove-friend="handleRemoveFriend"
             @recommend-route="handleRecommendRoute"
