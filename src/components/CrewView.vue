@@ -384,17 +384,6 @@ onMounted(fetchCrews)
         <VCardActions class="pa-6 pt-0 d-flex flex-column gap-2 shrink-0">
           <template v-if="isMember(selectedCrew)">
             <VBtn 
-              block 
-              color="error" 
-              variant="flat" 
-              rounded="xl" 
-              size="large" 
-              prepend-icon="mdi-map-marker-radius"
-              class="font-weight-bold mb-2"
-              @click="emit('open-crew-map', selectedCrew); showDetailDialog = false"
-            >실시간 크루 위치 보기</VBtn>
-            
-            <VBtn 
               v-if="selectedCrew.leader_id === currentUser?.id"
               block 
               color="error" 
