@@ -438,6 +438,95 @@ def get_friends_live_locations(user_id: int, db: Session = Depends(get_db)):
         })
     return result
 
+# --- 크루 API ---
+@app.get("/api/crews", response_model=List[schemas.Crew])
+def get_crews(db: Session = Depends(get_db)):
+    crews = db.query(models.Crew).all()
+    for crew in crews:
+        crew.member_count = len(crew.members)
+        # 멤버 정보 매핑
+        crew_members = []
+        for m in crew.members:
+            crew_members.append({
+                "user_id": m.user.id,
+                "name": m.user.name,
+                "profile_image": m.user.profile_image,
+                "joined_at": m.joined_at
+            })
+        crew.members = crew_members
+    return crews
+
+@app.post("/api/crews", response_model=schemas.Crew)
+def create_crew(crew: schemas.CrewCreate, user_id: int, db: Session = Depends(get_db)):
+    db_crew = models.Crew(**crew.dict())
+    db.add(db_crew)
+    db.commit()
+    db.refresh(db_crew)
+    
+    # 생성자를 첫 멤버로 추가
+    member = models.CrewMember(crew_id=db_crew.id, user_id=user_id)
+    db.add(member)
+    db.commit()
+    
+    db.refresh(db_crew)
+    db_crew.member_count = 1
+    return db_crew
+
+@app.post("/api/crews/{crew_id}/join")
+def join_crew(crew_id: int, user_id: int, db: Session = Depends(get_db)):
+    existing = db.query(models.CrewMember).filter(
+        models.CrewMember.crew_id == crew_id,
+        models.CrewMember.user_id == user_id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="이미 가입된 크루입니다.")
+    
+    member = models.CrewMember(crew_id=crew_id, user_id=user_id)
+    db.add(member)
+    db.commit()
+    return {"message": "크루에 가입되었습니다."}
+
+@app.post("/api/crews/{crew_id}/leave")
+def leave_crew(crew_id: int, user_id: int, db: Session = Depends(get_db)):
+    member = db.query(models.CrewMember).filter(
+        models.CrewMember.crew_id == crew_id,
+        models.CrewMember.user_id == user_id
+    ).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="가입되지 않은 크루입니다.")
+    
+    db.delete(member)
+    db.commit()
+    return {"message": "크루에서 탈퇴되었습니다."}
+
+@app.get("/api/live/crews/{crew_id}")
+def get_crew_live_locations(crew_id: int, db: Session = Depends(get_db)):
+    # 크루 멤버 ID 목록 조회
+    member_ids = [m.user_id for m in db.query(models.CrewMember).filter(models.CrewMember.crew_id == crew_id).all()]
+    if not member_ids:
+        return []
+        
+    time_threshold = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
+    live_members = db.query(models.LiveLocation).join(models.User, models.LiveLocation.user_id == models.User.id)\
+        .filter(models.LiveLocation.user_id.in_(member_ids))\
+        .filter(models.LiveLocation.is_active == True)\
+        .filter(models.LiveLocation.last_updated >= time_threshold).all()
+        
+    result = []
+    for loc in live_members:
+        result.append({
+            "user_id": loc.user_id,
+            "name": loc.user.name,
+            "latitude": loc.latitude,
+            "longitude": loc.longitude,
+            "distance": loc.distance,
+            "pace": loc.pace,
+            "time": loc.time,
+            "path": loc.path,
+            "last_updated": loc.last_updated
+        })
+    return result
+
 if __name__ == "__main__":
     import uvicorn
     import os

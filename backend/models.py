@@ -97,3 +97,23 @@ class FriendRequest(Base):
 
     from_user = relationship("User", foreign_keys=[from_user_id])
     to_user = relationship("User", foreign_keys=[to_user_id])
+
+class Crew(Base):
+    __tablename__ = "crews"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    description = Column(String)
+    image = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    members = relationship("CrewMember", back_populates="crew", cascade="all, delete-orphan")
+
+class CrewMember(Base):
+    __tablename__ = "crew_members"
+    id = Column(Integer, primary_key=True, index=True)
+    crew_id = Column(Integer, ForeignKey("crews.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    joined_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    crew = relationship("Crew", back_populates="members")
+    user = relationship("User")

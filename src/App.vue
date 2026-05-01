@@ -75,6 +75,9 @@ const liveFriendsTimer = ref(null)
 const showFriendProfile = ref(false)
 const showLiveMap = ref(false) // 실시간 지도 팝업
 const liveMapFriend = ref(null) // 현재 지도에서 보고 있는 친구
+const crewLiveMembers = ref([]) // 현재 지도에서 보고 있는 크루 멤버들
+const selectedCrew = ref(null) // 현재 지도로 보고 있는 크루
+const crewLiveTimer = ref(null) // 크루 실시간 동기화 타이머
 
 // 알림용 스낵바 상태
 const snackbar = ref({
@@ -106,14 +109,14 @@ const myRecords = computed(() => {
 
 // 로그인 안된 상태에서 접근이 필요한 뷰 감시
 watch(currentView, (newView, oldView) => {
-  const protectedViews = ['community', 'history', 'record', 'create']
+  const protectedViews = ['community', 'history', 'record', 'create', 'crew']
   if (!isLoggedIn.value && protectedViews.includes(newView)) {
     showAuthDialog.value = true
     // 이전 뷰가 유효하면 복구, 아니면 discover로 이동
     currentView.value = protectedViews.includes(oldView) ? 'discover' : (oldView || 'discover')
   }
 
-  // 커뮤니티 뷰로 전환 시 최신 전체 기록 로드 (친구 활동 및 랭킹 갱신용)
+  // 크루 뷰나 커뮤니티 뷰 전환 시 데이터 최신화
   if (newView === 'community' && isLoggedIn.value) {
     fetchGlobalRecords()
   }
@@ -325,6 +328,28 @@ const fetchPendingRequests = async () => {
   } catch (e) {
     console.error('친구 요청 로딩 실패:', e)
   }
+}
+
+const fetchCrewLiveLocations = async () => {
+  if (!selectedCrew.value) return
+  try {
+    const res = await fetch(`${API_URL}/live/crews/${selectedCrew.value.id}`)
+    if (res.ok) {
+      crewLiveMembers.value = await res.json()
+    }
+  } catch (e) {
+    console.error('크루 실시간 위치 로딩 실패:', e)
+  }
+}
+
+const openCrewMap = (crew) => {
+  selectedCrew.value = crew
+  liveMapFriend.value = null // 개별 친구 모드 비활성
+  showLiveMap.value = true
+  fetchCrewLiveLocations()
+  
+  if (crewLiveTimer.value) clearInterval(crewLiveTimer.value)
+  crewLiveTimer.value = setInterval(fetchCrewLiveLocations, 5000)
 }
 
 const handleAcceptRequest = async (requestId) => {
@@ -934,6 +959,15 @@ const goToCreate = () => {
           />
         </div>
 
+        <!-- 크루 뷰 -->
+        <div v-else-if="currentView === 'crew'">
+          <CrewView 
+            :current-user="currentUser"
+            :api-url="API_URL"
+            @open-crew-map="openCrewMap"
+          />
+        </div>
+
         <!-- 내 활동 뷰 (신발 관리 포함) -->
         <div v-else-if="currentView === 'history'">
           <UserHistory 
@@ -1034,7 +1068,10 @@ const goToCreate = () => {
 
           <div style="height: 400px; width: 100%;">
             <!-- 실시간 이동 경로 지도 컴포넌트 -->
-            <LiveMap v-if="showLiveMap && liveMapFriend" :friend="liveMapFriend" />
+            <LiveMap 
+              v-if="showLiveMap && (liveMapFriend || crewLiveMembers.length > 0)" 
+              :members="liveMapFriend ? [liveMapFriend] : crewLiveMembers" 
+            />
           </div>
         </VCardText>
         
@@ -1104,6 +1141,11 @@ const goToCreate = () => {
       <VBtn value="community">
         <VIcon icon="mdi-account-group" />
         <span>커뮤니티</span>
+      </VBtn>
+
+      <VBtn value="crew">
+        <VIcon icon="mdi-account-multiple" />
+        <span>크루</span>
       </VBtn>
 
       <VBtn value="history">

@@ -111,3 +111,30 @@ class LiveLocationUpdate(BaseModel):
     time: Optional[str] = "00:00:00"
     path: List[List[float]]
     is_active: bool
+
+# Crew Schemas
+class CrewMember(BaseModel):
+    user_id: int
+    name: str
+    profile_image: Optional[str] = None
+    joined_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class CrewBase(BaseModel):
+    name: str
+    description: str
+    image: Optional[str] = None
+
+class CrewCreate(CrewBase):
+    pass
+
+class Crew(CrewBase):
+    id: int
+    created_at: datetime
+    member_count: int = 0
+    members: List[CrewMember] = []
+
+    class Config:
+        from_attributes = True
