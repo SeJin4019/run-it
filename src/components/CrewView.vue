@@ -358,7 +358,7 @@ onMounted(fetchCrews)
           <div>
             <h4 class="text-subtitle-1 font-weight-bold mb-4 d-flex align-center justify-space-between">
               멤버 목록
-              <span class="text-caption text-grey font-weight-medium">최근 가입순</span>
+              <span class="text-caption text-grey font-weight-medium">기여도 순</span>
             </h4>
             <div class="member-list">
               <div v-for="member in selectedCrew.members" :key="member.user_id" class="d-flex align-center mb-3 pa-2 rounded-lg bg-grey-lighten-5">
@@ -374,6 +374,9 @@ onMounted(fetchCrews)
                     </VChip>
                   </div>
                   <div class="text-caption text-grey">{{ formatDate(member.joined_at) }} 가입</div>
+                </div>
+                <div class="text-right mr-2">
+                  <div class="text-body-2 font-weight-bold text-primary">{{ member.distance }} km</div>
                 </div>
                 <div class="d-flex align-center">
                   <VIcon v-if="member.user_id === currentUser?.id" icon="mdi-check-circle" color="primary" size="20" class="mr-1" />

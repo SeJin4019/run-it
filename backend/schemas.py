@@ -118,6 +118,7 @@ class CrewMember(BaseModel):
     name: str
     profile_image: Optional[str] = None
     status: Optional[str] = "accepted"
+    distance: float = 0.0
     joined_at: datetime
 
     class Config:

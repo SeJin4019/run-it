@@ -25,6 +25,9 @@ try:
         try:
             conn.execute(text("ALTER TABLE crew_members ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'accepted'"))
         except Exception: pass
+        try:
+            conn.execute(text("ALTER TABLE crew_members ADD COLUMN IF NOT EXISTS distance FLOAT DEFAULT 0.0"))
+        except Exception: pass
         
         # 기존 데이터 보정
         try:
@@ -346,10 +349,15 @@ def create_record(record: schemas.RecordCreate, user_id: int, db: Session = Depe
     ).all()
     
     for mc in user_crews:
+        # 크루 전체 거리 업데이트
         crew = db.query(models.Crew).filter(models.Crew.id == mc.crew_id).first()
         if crew:
             if crew.total_distance is None: crew.total_distance = 0.0
             crew.total_distance += record.distance
+        
+        # 개인별 크루 기여 거리 업데이트
+        if mc.distance is None: mc.distance = 0.0
+        mc.distance += record.distance
             
     db.commit()
     db.refresh(db_record)
@@ -493,9 +501,13 @@ def get_crews(db: Session = Depends(get_db)):
                     "name": m.user.name,
                     "profile_image": m.user.profile_image,
                     "status": m.status,
+                    "distance": round(m.distance or 0.0, 2),
                     "joined_at": m.joined_at
                 })
         
+        # 거리 순으로 멤버 정렬 (크루 내 랭킹)
+        members_list.sort(key=lambda x: x['distance'], reverse=True)
+
         # 신청 중인 멤버 (리더에게만 보여주기 위해 정보 포함)
         pending_list = []
         for m in pending_members:

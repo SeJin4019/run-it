@@ -117,6 +117,7 @@ class CrewMember(Base):
     crew_id = Column(Integer, ForeignKey("crews.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
     status = Column(String, default="accepted") # pending, accepted
+    distance = Column(Float, default=0.0) # 해당 크루에서 뛴 누적 거리
     joined_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     crew = relationship("Crew", back_populates="members")
