@@ -10,6 +10,7 @@ import AuthDialog from './components/AuthDialog.vue'
 import RunningRecord from './components/RunningRecord.vue'
 import UserHistory from './components/UserHistory.vue'
 import CommunityView from './components/CommunityView.vue'
+import CrewView from './components/CrewView.vue'
 import ShoeManagement from './components/ShoeManagement.vue'
 import LiveMap from './components/LiveMap.vue'
 
