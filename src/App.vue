@@ -13,6 +13,7 @@ import CommunityView from './components/CommunityView.vue'
 import CrewView from './components/CrewView.vue'
 import ShoeManagement from './components/ShoeManagement.vue'
 import LiveMap from './components/LiveMap.vue'
+import ChatbotView from './components/ChatbotView.vue'
 
 /**
  * 🏃‍♂️ 런당근 메인 애플리케이션 컴포넌트
@@ -152,7 +153,7 @@ const allPendingCrewRequests = computed(() => {
 })
 
 watch(currentView, (newView, oldView) => {
-  const protectedViews = ['community', 'history', 'record', 'create']
+  const protectedViews = ['community', 'history', 'record', 'create', 'chatbot']
   if (!isLoggedIn.value && protectedViews.includes(newView)) {
     showAuthDialog.value = true
     // 이전 뷰가 유효하면 복구, 아니면 discover로 이동
@@ -958,6 +959,15 @@ const goToCreate = () => {
             elevation="8"
             @click="goToCreate"
           />
+
+          <!-- 챗봇 버튼 (오렌지 버튼 위에 위치) -->
+          <VBtn
+            class="position-fixed chatbot-fab"
+            icon="mdi-robot-happy"
+            size="large"
+            elevation="8"
+            @click="currentView = 'chatbot'"
+          />
         </div>
 
         <!-- 코스 등록 뷰 -->
@@ -1036,6 +1046,15 @@ const goToCreate = () => {
             @delete-record="handleDeleteRecord"
             @update-user="handleUpdateUser"
             @logout="handleLogout"
+          />
+        </div>
+
+        <!-- 챗봇 뷰 -->
+        <div v-else-if="currentView === 'chatbot'">
+          <ChatbotView 
+            :current-user="currentUser"
+            :api-url="API_URL"
+            @back="currentView = 'discover'"
           />
         </div>
       </VContainer>
@@ -1279,6 +1298,28 @@ const goToCreate = () => {
 .main-record-fab:hover {
   transform: translateY(-3px) scale(1.05);
   box-shadow: 0 6px 15px rgba(255, 138, 61, 0.4) !important;
+}
+
+.chatbot-fab {
+  bottom: 80px !important; /* 기록 버튼(FAB) 위에 위치하도록 조정 */
+  left: 50% !important;
+  transform: translateX(-50%) translateY(0);
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+  color: white !important;
+  z-index: 100;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+.chatbot-fab:hover {
+  transform: translateX(-50%) translateY(-5px) scale(1.1);
+  box-shadow: 0 10px 20px rgba(79, 172, 254, 0.4) !important;
+}
+
+/* 챗봇 버튼이 가려지지 않게 하단 네비게이션과 간격 조정 */
+@media (max-width: 600px) {
+  .chatbot-fab {
+    bottom: 95px !important;
+  }
 }
 
 .fab-label {

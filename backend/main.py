@@ -693,7 +693,37 @@ def get_crew_live_locations(crew_id: int, db: Session = Depends(get_db)):
         })
     return result
 
+# --- 챗봇 API ---
+@app.post("/api/chatbot", response_model=schemas.ChatResponse)
+def chatbot_response(request: schemas.ChatRequest, db: Session = Depends(get_db)):
+    msg = request.message.lower()
+    user_name = "러너"
+    
+    if request.user_id:
+        user = db.query(models.User).filter(models.User.id == request.user_id).first()
+        if user:
+            user_name = user.name
+
+    # 간단한 시나리오 기반 응답 (나중에 LLM 연동 가능)
+    if "안녕" in msg or "하이" in msg:
+        response = f"안녕하세요, {user_name}님! 오늘도 즐거운 러닝 준비 되셨나요? 무엇을 도와드릴까요?"
+    elif "날씨" in msg:
+        response = "현재 러닝하기 딱 좋은 날씨예요! 가벼운 바람막이를 챙기시는 걸 추천드려요."
+    elif "코스" in msg or "추천" in msg:
+        response = f"{user_name}님의 지역 근처에 인기 있는 코스가 몇 군데 있어요. '추천' 탭에서 확인해보시겠어요?"
+    elif "힘들어" in msg or "피곤" in msg:
+        response = "가끔은 쉬어가는 것도 훈련의 일부예요. 오늘은 가벼운 스트레칭만 하시는 건 어떨까요?"
+    elif "기록" in msg:
+        response = f"{user_name}님의 최근 기록을 보니 페이스가 점점 좋아지고 계시네요! 정말 멋져요."
+    elif "신발" in msg:
+        response = "신발 마일리지가 500km를 넘으면 교체를 고민해보시는 게 좋아요. '내 정보'에서 신발 상태를 확인해보세요!"
+    else:
+        response = f"{user_name}님, 흥미로운 질문이네요! 러닝에 대해 더 궁금한 점이 있다면 언제든 물어보세요. 제가 곁에서 응원할게요!"
+
+    return {"response": response}
+
 if __name__ == "__main__":
+
     import uvicorn
     import os
     port = int(os.getenv("PORT", 8000))

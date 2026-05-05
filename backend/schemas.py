@@ -143,3 +143,12 @@ class Crew(CrewBase):
 
     class Config:
         from_attributes = True
+
+# Chatbot Schemas
+class ChatRequest(BaseModel):
+    message: str
+    user_id: Optional[int] = None
+
+class ChatResponse(BaseModel):
+    response: str
+
