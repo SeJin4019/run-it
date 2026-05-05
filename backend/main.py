@@ -6,6 +6,16 @@ from typing import List
 import datetime
 import models, schemas, auth, database
 from database import engine, get_db
+import google.generativeai as genai
+import os
+
+# Gemini 설정
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    print(f"Gemini API Key loaded: {GEMINI_API_KEY[:5]}***")
+else:
+    print("Gemini API Key NOT found in environment variables!")
 
 # DB 테이블 생성
 models.Base.metadata.create_all(bind=engine)
@@ -696,31 +706,37 @@ def get_crew_live_locations(crew_id: int, db: Session = Depends(get_db)):
 # --- 챗봇 API ---
 @app.post("/api/chatbot", response_model=schemas.ChatResponse)
 def chatbot_response(request: schemas.ChatRequest, db: Session = Depends(get_db)):
-    msg = request.message.lower()
     user_name = "러너"
-    
     if request.user_id:
         user = db.query(models.User).filter(models.User.id == request.user_id).first()
         if user:
             user_name = user.name
 
-    # 간단한 시나리오 기반 응답 (나중에 LLM 연동 가능)
-    if "안녕" in msg or "하이" in msg:
-        response = f"안녕하세요, {user_name}님! 오늘도 즐거운 러닝 준비 되셨나요? 무엇을 도와드릴까요?"
-    elif "날씨" in msg:
-        response = "현재 러닝하기 딱 좋은 날씨예요! 가벼운 바람막이를 챙기시는 걸 추천드려요."
-    elif "코스" in msg or "추천" in msg:
-        response = f"{user_name}님의 지역 근처에 인기 있는 코스가 몇 군데 있어요. '추천' 탭에서 확인해보시겠어요?"
-    elif "힘들어" in msg or "피곤" in msg:
-        response = "가끔은 쉬어가는 것도 훈련의 일부예요. 오늘은 가벼운 스트레칭만 하시는 건 어떨까요?"
-    elif "기록" in msg:
-        response = f"{user_name}님의 최근 기록을 보니 페이스가 점점 좋아지고 계시네요! 정말 멋져요."
-    elif "신발" in msg:
-        response = "신발 마일리지가 500km를 넘으면 교체를 고민해보시는 게 좋아요. '내 정보'에서 신발 상태를 확인해보세요!"
-    else:
-        response = f"{user_name}님, 흥미로운 질문이네요! 러닝에 대해 더 궁금한 점이 있다면 언제든 물어보세요. 제가 곁에서 응원할게요!"
+    if not GEMINI_API_KEY or GEMINI_API_KEY == "YOUR_GEMINI_API_KEY_HERE":
+        return {"response": f"안녕하세요 {user_name}님! 현재 챗봇 설정이 완료되지 않았습니다. 관리자에게 문의하여 Gemini API 키를 설정해주세요."}
 
-    return {"response": response}
+    try:
+        model = genai.GenerativeModel('models/gemini-flash-latest')
+        
+        # 시스템 프롬프트 설정 (페르소나 부여)
+        system_instruction = f"""
+        당신은 'Run-it' 이라는 러닝 앱의 친절하고 전문적인 AI 러닝 코치입니다.
+        사용자의 이름은 {user_name}입니다.
+        사용자의 질문에 대해 러닝, 건강, 운동 계획, 동기 부여와 관련된 조언을 제공하세요.
+        답변은 친절하고 격려하는 어조로 한국어로 작성하세요.
+        답변 끝에는 항상 러닝을 응원하는 짧은 문구를 덧붙여주세요.
+        """
+        
+        response = model.generate_content(
+            contents=[
+                {"role": "user", "parts": [system_instruction + "\n\n사용자 질문: " + request.message]}
+            ]
+        )
+        
+        return {"response": response.text}
+    except Exception as e:
+        print(f"Gemini API Error: {e}")
+        return {"response": "죄송합니다. 메시지를 처리하는 중에 오류가 발생했습니다. 잠시 후 다시 시도해주세요."}
 
 if __name__ == "__main__":
 
