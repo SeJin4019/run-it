@@ -152,3 +152,15 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
 
+class ChatMessageBase(BaseModel):
+    role: str
+    content: str
+
+class ChatMessage(ChatMessageBase):
+    id: int
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+

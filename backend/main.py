@@ -17,56 +17,40 @@ if GEMINI_API_KEY:
 else:
     print("Gemini API Key NOT found in environment variables!")
 
+def get_embedding(text: str):
+    """텍스트 임베딩 생성"""
+    if not GEMINI_API_KEY or not text:
+        return None
+    try:
+        result = genai.embed_content(
+            model="models/gemini-embedding-001",
+            content=text,
+            task_type="retrieval_document"
+        )
+        return result['embedding']
+    except Exception as e:
+        print(f"Embedding Error: {e}")
+        return None
+
+def cosine_similarity(v1, v2):
+    """코사인 유사도 계산"""
+    if not v1 or not v2: return 0
+    import math
+    dot_product = sum(a * b for a, b in zip(v1, v2))
+    mag1 = math.sqrt(sum(a * a for a in v1))
+    mag2 = math.sqrt(sum(b * b for b in v2))
+    if mag1 == 0 or mag2 == 0: return 0
+    return dot_product / (mag1 * mag2)
+
 # DB 테이블 생성
 models.Base.metadata.create_all(bind=engine)
 
-# DB 스키마 마이그레이션 (기존 테이블에 컬럼 추가)
-try:
-    with engine.begin() as conn:
-        # crews 테이블 컬럼 추가
-        try:
-            conn.execute(text("ALTER TABLE crews ADD COLUMN IF NOT EXISTS leader_id INTEGER"))
-        except Exception: pass
-        try:
-            conn.execute(text("ALTER TABLE crews ADD COLUMN IF NOT EXISTS total_distance FLOAT DEFAULT 0.0"))
-        except Exception: pass
-        
-        # crew_members 테이블 컬럼 추가
-        try:
-            conn.execute(text("ALTER TABLE crew_members ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'accepted'"))
-        except Exception: pass
-        try:
-            conn.execute(text("ALTER TABLE crew_members ADD COLUMN IF NOT EXISTS distance FLOAT DEFAULT 0.0"))
-        except Exception: pass
-        
-        # 기존 데이터 보정
-        try:
-            conn.execute(text("UPDATE crew_members SET status = 'accepted' WHERE status IS NULL"))
-        except Exception: pass
-    print("Database migration logic executed.")
-except Exception as e:
-    print(f"Database migration error: {e}")
-
-# 누락된 컬럼 자동 마이그레이션 (Render DB 배포용)
-try:
-    with engine.begin() as conn:
-        from sqlalchemy import text
-        conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
-        conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS distance FLOAT DEFAULT 0.0;"))
-        conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS pace VARCHAR DEFAULT '00:00';"))
-        conn.execute(text("ALTER TABLE live_locations ADD COLUMN IF NOT EXISTS time VARCHAR DEFAULT '00:00:00';"))
-        conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS shoe_id INTEGER;"))
-        conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS cadence INTEGER DEFAULT 0;"))
-        conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
-        conn.execute(text("ALTER TABLE records ADD COLUMN IF NOT EXISTS splits JSON DEFAULT '[]'::json;"))
-        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS friends JSON DEFAULT '[]'::json;"))
-        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP;"))
-        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image TEXT;"))
-        conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS path JSON DEFAULT '[]'::json;"))
-        conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS comments JSON DEFAULT '[]'::json;"))
-        conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS liked_users JSON DEFAULT '[]'::json;"))
-except Exception as e:
-    print("Migration Error:", e)
+# DB 스키마 마이그레이션 (필요 시에만 주석 해제하여 실행)
+# try:
+#     with engine.begin() as conn:
+#         ... (기존 마이그레이션 로직)
+# except Exception as e:
+#     print("Migration Error:", e)
 
 app = FastAPI(title="Run-it API")
 
@@ -277,7 +261,9 @@ def get_courses(db: Session = Depends(get_db)):
 
 @app.post("/api/courses", response_model=schemas.Course)
 def create_course(course: schemas.CourseCreate, user_id: int, db: Session = Depends(get_db)):
-    db_course = models.Course(**course.dict(), author_id=user_id)
+    # 설명 임베딩 생성
+    embedding = get_embedding(course.description)
+    db_course = models.Course(**course.dict(), author_id=user_id, description_embedding=embedding)
     db.add(db_course)
     db.commit()
     db.refresh(db_course)
@@ -285,6 +271,36 @@ def create_course(course: schemas.CourseCreate, user_id: int, db: Session = Depe
     user = db.query(models.User).filter(models.User.id == user_id).first()
     db_course.author_name = user.name if user else "익명"
     return db_course
+
+@app.get("/api/courses/search")
+def search_courses_semantic(query: str, db: Session = Depends(get_db)):
+    """Gemini 임베딩 기반 시맨틱 검색"""
+    if not query:
+        return []
+    
+    query_embedding = get_embedding(query)
+    if not query_embedding:
+        # 임베딩 실패 시 일반 텍스트 검색(LIKE)으로 대체
+        return db.query(models.Course).filter(models.Course.name.contains(query)).all()
+    
+    courses = db.query(models.Course).all()
+    results = []
+    for c in courses:
+        if c.description_embedding:
+            similarity = cosine_similarity(query_embedding, c.description_embedding)
+            # 작성자 이름 매핑
+            author_name = c.author.name if c.author else "익명"
+            results.append({
+                "course": c,
+                "author_name": author_name,
+                "similarity": similarity
+            })
+    
+    # 유사도 순으로 정렬
+    results.sort(key=lambda x: x["similarity"], reverse=True)
+    
+    # 상위 10개만 반환 (유사도 0.3 이상 권장)
+    return [r for r in results if r["similarity"] > 0.2][:10]
 
 @app.post("/api/courses/{course_id}/like")
 def toggle_like_course(course_id: int, user_id: int, db: Session = Depends(get_db)):
@@ -718,25 +734,77 @@ def chatbot_response(request: schemas.ChatRequest, db: Session = Depends(get_db)
     try:
         model = genai.GenerativeModel('models/gemini-flash-latest')
         
-        # 시스템 프롬프트 설정 (페르소나 부여)
+        # 0. 사용자 메시지 DB 저장
+        if request.user_id:
+            user_msg = models.ChatMessage(user_id=request.user_id, role="user", content=request.message)
+            db.add(user_msg)
+            db.commit()
+
+        # 1. 과거 대화 내역 가져오기 (최근 5개)
+        history_text = ""
+        if request.user_id:
+            past_messages = db.query(models.ChatMessage).filter(models.ChatMessage.user_id == request.user_id).order_by(models.ChatMessage.created_at.desc()).limit(5).all()
+            # 시간순으로 정렬
+            past_messages.reverse()
+            if past_messages:
+                history_text = "\n[최근 대화 내역]\n"
+                for m in past_messages[:-1]: # 현재 메시지 제외
+                    role_name = "사용자" if m.role == "user" else "코치"
+                    history_text += f"{role_name}: {m.content}\n"
+
+        # 2. RAG: DB에서 관련 코스 정보 검색
+        related_courses_text = ""
+        query_embedding = get_embedding(request.message)
+        if query_embedding:
+            all_courses = db.query(models.Course).all()
+            scored_courses = []
+            for c in all_courses:
+                if c.description_embedding:
+                    score = cosine_similarity(query_embedding, c.description_embedding)
+                    if score > 0.3:
+                        scored_courses.append((score, c))
+            
+            scored_courses.sort(key=lambda x: x[0], reverse=True)
+            top_courses = scored_courses[:3]
+            
+            if top_courses:
+                related_courses_text = "\n[참고할 수 있는 DB 내 코스 정보]\n"
+                for score, c in top_courses:
+                    related_courses_text += f"- 이름: {c.name}, 위치: {c.location}, 거리: {c.distance}km, 난이도: {c.difficulty}, 특징: {c.description}\n"
+
+        # 3. 시스템 프롬프트 설정
         system_instruction = f"""
         당신은 'Run-it' 이라는 러닝 앱의 친절하고 전문적인 AI 러닝 코치입니다.
         사용자의 이름은 {user_name}입니다.
+        
+        이전 대화 내역([최근 대화 내역])이 있다면 흐름을 이어가며 답변하세요.
+        제공된 [참고할 수 있는 DB 내 코스 정보]가 있다면 이를 활용하여 답변하세요. 
         사용자의 질문에 대해 러닝, 건강, 운동 계획, 동기 부여와 관련된 조언을 제공하세요.
         답변은 친절하고 격려하는 어조로 한국어로 작성하세요.
         답변 끝에는 항상 러닝을 응원하는 짧은 문구를 덧붙여주세요.
         """
         
-        response = model.generate_content(
-            contents=[
-                {"role": "user", "parts": [system_instruction + "\n\n사용자 질문: " + request.message]}
-            ]
-        )
+        prompt = system_instruction + history_text + related_courses_text + "\n\n현재 질문: " + request.message
         
-        return {"response": response.text}
+        response = model.generate_content(prompt)
+        ai_response = response.text
+
+        # 4. AI 응답 DB 저장
+        if request.user_id:
+            assistant_msg = models.ChatMessage(user_id=request.user_id, role="assistant", content=ai_response)
+            db.add(assistant_msg)
+            db.commit()
+        
+        return {"response": ai_response}
     except Exception as e:
         print(f"Gemini API Error: {e}")
         return {"response": "죄송합니다. 메시지를 처리하는 중에 오류가 발생했습니다. 잠시 후 다시 시도해주세요."}
+
+@app.get("/api/chatbot/history/{user_id}", response_model=List[schemas.ChatMessage])
+def get_chatbot_history(user_id: int, db: Session = Depends(get_db)):
+    """과거 대화 내역 조회"""
+    messages = db.query(models.ChatMessage).filter(models.ChatMessage.user_id == user_id).order_by(models.ChatMessage.created_at.asc()).all()
+    return messages
 
 if __name__ == "__main__":
 

@@ -36,6 +36,7 @@ class Course(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     comments = Column(JSON, default=list)
     liked_users = Column(JSON, default=list)
+    description_embedding = Column(JSON, nullable=True) # 설명 임베딩 저장
 
     author = relationship("User", back_populates="courses")
 
@@ -121,4 +122,15 @@ class CrewMember(Base):
     joined_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     crew = relationship("Crew", back_populates="members")
+    user = relationship("User")
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    role = Column(String) # "user" 또는 "assistant"
+    content = Column(String)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
     user = relationship("User")
